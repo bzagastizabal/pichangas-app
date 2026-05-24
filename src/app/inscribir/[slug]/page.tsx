@@ -169,12 +169,34 @@ function EstadoInscripcionVista({
 
     if (inscripcion.estado === 'lista_espera') {
       return (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
-          <p className="font-medium text-amber-800">
-            ⏳ Estás en lista de espera
-            {inscripcion.posicion_lista ? ` (puesto ${inscripcion.posicion_lista})` : ''}.
-          </p>
-          <p className="text-amber-700">Te avisaremos si se libera un cupo.</p>
+        <div className="space-y-3">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+            <p className="font-medium text-amber-800">
+              ⏳ Estás en lista de espera
+              {inscripcion.posicion_lista ? ` (puesto ${inscripcion.posicion_lista})` : ''}.
+            </p>
+            <p className="text-amber-700">
+              Puedes pagar ahora para adelantarte: <strong>el que paga primero gana</strong> el cupo.
+            </p>
+          </div>
+          {pago && pago.estado === 'en_revision' ? (
+            <p className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
+              📤 Comprobante en revisión. Si tu pago es de los más antiguos, tomarás un cupo.
+            </p>
+          ) : (
+            <>
+              {pago && pago.estado === 'rechazado' && (
+                <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  Tu comprobante anterior fue rechazado
+                  {pago.motivo_rechazo ? `: ${pago.motivo_rechazo}` : ''}. Sube uno nuevo.
+                </p>
+              )}
+              <FormComprobante
+                inscripcionId={inscripcion.id}
+                montoSugerido={evento.costo_por_participante}
+              />
+            </>
+          )}
         </div>
       );
     }

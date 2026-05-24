@@ -88,6 +88,16 @@ export type Pago = {
   comprobante_eliminado: boolean;
 };
 
+export type Notificacion = {
+  id: string;
+  usuario_id: string;
+  evento_id: string | null;
+  tipo: 'promovido' | 'liberado' | 'expirado' | 'confirmado';
+  mensaje: string;
+  leida: boolean;
+  created_at: string;
+};
+
 // Estado que devuelven las Server Actions de formularios (para useActionState).
 export type EstadoForm = { error?: string };
 

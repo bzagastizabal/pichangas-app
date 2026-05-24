@@ -86,8 +86,14 @@ decide si la pichanga se realiza o se cancela.)
 - **Fase 1 (COMPLETA):** Auth + roles + RLS + CRUD de `sedes` y `arbitros` (panel /admin).
 - **Fase 2 (COMPLETA):** Crear eventos (cálculo de costo + slug), página pública de inscripción
   con RPC atómica, subida de comprobante a Storage, panel de aprobación de pagos del admin.
-- **Fase 3 (SIGUIENTE):** Cron de expiración, promoción de lista de espera, regla de pago-rápido
-  (desplazar pendiente con comprobante más nuevo al aprobar), notificaciones (email o WhatsApp).
+- **Fase 3 (EN CURSO):** Lógica de cupos atómica implementada en SQL.
+  - aprobar_pago() ahora aplica "el que paga primero gana": un lista_espera que paga
+    desplaza a un pendiente con comprobante más nuevo (o sin pagar) -> 'liberado'.
+  - expirar_y_promover() (pg_cron cada 5 min): expira pendientes vencidos sin pago y
+    promueve lista_espera a pendiente con nueva ventana.
+  - Notificaciones in-app (tabla `notificaciones`): promovido/liberado/expirado/confirmado;
+    se ven en /dashboard. Base para email/WhatsApp (delivery externo = pendiente).
+  - La lista de espera ya puede pagar (compite por cupo). SQL: 06_notificaciones, 07_logica_cupos.
 - **Fase 4:** Módulo financiero: balance por evento (ingresos, egresos, ganancia, morosos)
   y balance general consolidado por rango de fechas.
 
