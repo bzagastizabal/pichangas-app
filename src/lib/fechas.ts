@@ -29,6 +29,12 @@ export function isoADatetimeLocalLima(iso: string): string {
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
+// ¿El evento ya terminó? (inicio + duración < ahora).
+export function eventoYaTermino(fechaEvento: string, duracionHoras: number): boolean {
+  const fin = new Date(fechaEvento).getTime() + duracionHoras * 3600 * 1000;
+  return Date.now() > fin;
+}
+
 // timestamptz -> texto legible en español/Lima, p. ej. "30 may 2026, 18:00".
 export function formatearFechaLima(iso: string): string {
   return new Date(iso).toLocaleString('es-PE', {

@@ -1,26 +1,24 @@
 @import "tailwindcss";
 
+/* Tema oscuro por defecto, en grises (zinc) — no negro puro.
+   color-scheme:dark alinea los controles nativos (select, date, scrollbars). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
+  --color-fondo: #18181b;      /* fondo de página (zinc-900) */
+  --color-tarjeta: #27272a;    /* tarjetas / superficies (zinc-800) */
+  --color-campo: #323238;      /* campos de formulario */
+  --color-borde: #3f3f46;      /* bordes (zinc-700) */
+  --color-texto: #f4f4f5;      /* texto principal (zinc-100) */
+  --color-tenue: #a1a1aa;      /* texto secundario (zinc-400) */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-fondo);
+  color: var(--color-texto);
   font-family: Arial, Helvetica, sans-serif;
 }

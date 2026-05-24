@@ -26,10 +26,20 @@ export type Arbitro = {
 };
 
 export type EstadoEvento = 'abierta' | 'cerrada' | 'cancelada' | 'finalizada';
+export type TipoEvento = 'pichanga' | 'amistoso' | 'torneo';
+
+export type Categoria = {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  created_at: string;
+};
 
 export type Evento = {
   id: string;
   tipo_deporte: string;
+  tipo: TipoEvento;
+  categoria_id: string | null;
   sede_id: string;
   arbitro_id: string | null;
   admin_id: string;
@@ -44,6 +54,21 @@ export type Evento = {
   costo_por_participante: number;
   estado: EstadoEvento;
   slug_inscripcion: string;
+  created_at: string;
+};
+
+export type MetodoEgreso = 'yape' | 'plin' | 'banco' | 'efectivo';
+
+export type Egreso = {
+  id: string;
+  evento_id: string | null;
+  tipo: 'sede' | 'arbitro' | 'otro';
+  sede_id: string | null;
+  arbitro_id: string | null;
+  monto: number;
+  metodo: MetodoEgreso | null;
+  fecha_pago: string;
+  nota: string | null;
   created_at: string;
 };
 
