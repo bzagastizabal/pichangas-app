@@ -2,8 +2,10 @@
 // Página pública de inscripción (enlace directo por slug). Requiere sesión:
 // la RLS no deja a un anónimo ver el evento, así que invitamos a iniciar sesión.
 import Link from 'next/link';
+import Image from 'next/image';
 import { getSesion } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { EstadoInscripcion, Evento, Inscripcion, Pago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { BotonInscribirse } from './BotonInscribirse';
@@ -18,7 +20,7 @@ type EventoPublico = Evento & {
   sedes: { nombre: string; direccion: string | null; geolocalizacion: string | null } | null;
 };
 
-const tarjeta = 'max-w-md mx-auto mt-12 p-6 rounded-xl border border-gray-200 space-y-4';
+const tarjeta = 'max-w-md mx-auto mt-12 p-6 rounded-xl border border-borde bg-tarjeta space-y-4';
 
 export default async function InscribirPage({
   params,
@@ -33,8 +35,9 @@ export default async function InscribirPage({
     const next = `/inscribir/${slug}`;
     return (
       <div className={tarjeta}>
+        <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
         <h1 className="text-xl font-bold">Inscríbete a la pichanga 🏀</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-tenue">
           Inicia sesión o crea tu cuenta para ver los detalles y reservar tu cupo.
         </p>
         <div className="flex gap-3">
@@ -46,7 +49,7 @@ export default async function InscribirPage({
           </Link>
           <Link
             href={`/registro?next=${encodeURIComponent(next)}`}
-            className="flex-1 text-center border border-gray-300 py-2 rounded"
+            className="flex-1 text-center border border-borde py-2 rounded"
           >
             Crear cuenta
           </Link>
@@ -67,7 +70,7 @@ export default async function InscribirPage({
     return (
       <div className={tarjeta}>
         <h1 className="text-xl font-bold">Evento no encontrado</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-tenue">
           El enlace no es válido o el evento ya no está disponible.
         </p>
         <Link href="/dashboard" className="text-orange-600 hover:underline text-sm">
@@ -100,15 +103,25 @@ export default async function InscribirPage({
     pago = pagoData as Pago | null;
   }
 
+  // Cupos ocupados (pendiente + confirmado) — vía service-role para contar todo.
+  const admin = createAdminClient();
+  const { count: ocupados } = await admin
+    .from('inscripciones')
+    .select('*', { count: 'exact', head: true })
+    .eq('evento_id', evento.id)
+    .in('estado', ['pendiente', 'confirmado']);
+  const disponibles = Math.max(0, evento.cupos_totales - (ocupados ?? 0));
+
   return (
     <div className={tarjeta}>
+      <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
       <div>
         <h1 className="text-xl font-bold">{evento.sedes?.nombre ?? 'Pichanga'} 🏀</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-tenue">
           {formatearFechaLima(evento.fecha_hora_evento)}
         </p>
         {evento.sedes?.direccion && (
-          <p className="text-sm text-gray-500">{evento.sedes.direccion}</p>
+          <p className="text-sm text-tenue">{evento.sedes.direccion}</p>
         )}
         {evento.sedes?.geolocalizacion && (
           <a
@@ -122,17 +135,21 @@ export default async function InscribirPage({
         )}
       </div>
 
-      <div className="rounded-lg bg-gray-50 p-4 text-sm space-y-1">
+      <div className="rounded-lg bg-fondo p-4 text-sm space-y-1">
         <p>
           Costo por jugador:{' '}
           <span className="font-bold text-orange-700">
             {soles.format(evento.costo_por_participante)}
           </span>
         </p>
-        <p className="text-gray-600">
+        <p className="text-tenue">
           Límite de pago: {formatearFechaLima(evento.fecha_hora_limite_pago)}
         </p>
-        <p className="text-gray-600">Cupos: {evento.cupos_totales}</p>
+        <p className="text-tenue">
+          Cupos: <span className="text-texto font-medium">{disponibles}</span> disponibles
+          de {evento.cupos_totales}
+          {disponibles === 0 && <span className="text-amber-400"> · lleno (lista de espera)</span>}
+        </p>
       </div>
 
       <EstadoInscripcionVista
@@ -141,7 +158,7 @@ export default async function InscribirPage({
         pago={pago}
       />
 
-      <Link href="/dashboard" className="block text-center text-sm text-gray-400 hover:text-orange-600">
+      <Link href="/dashboard" className="block text-center text-sm text-tenue hover:text-orange-600">
         Volver al inicio
       </Link>
     </div>
@@ -160,7 +177,14 @@ function EstadoInscripcionVista({
   if (inscripcion) {
     if (inscripcion.estado === 'confirmado') {
       return (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-center">
+          <Image
+            src="/cmt_insignia.png"
+            alt="CMT Basquetball Club"
+            width={1500}
+            height={1500}
+            className="h-28 w-auto mx-auto mb-2"
+          />
           <p className="font-medium text-blue-800">🎉 Inscripción confirmada.</p>
           <p className="text-blue-700">Tu pago fue aprobado. ¡Nos vemos en la cancha!</p>
         </div>
@@ -250,15 +274,15 @@ function EstadoInscripcionVista({
       pendiente: null,
       confirmado: null,
       lista_espera: null,
-      expirado: <p className="text-sm text-gray-500">Tu reserva anterior expiró.</p>,
-      liberado: <p className="text-sm text-gray-500">Tu cupo fue liberado.</p>,
+      expirado: <p className="text-sm text-tenue">Tu reserva anterior expiró.</p>,
+      liberado: <p className="text-sm text-tenue">Tu cupo fue liberado.</p>,
     };
     return <>{otros[inscripcion.estado]}</>;
   }
 
   if (evento.estado !== 'abierta') {
     return (
-      <p className="rounded-lg bg-gray-100 p-4 text-sm text-gray-600">
+      <p className="rounded-lg bg-fondo p-4 text-sm text-tenue">
         Las inscripciones para este evento están cerradas.
       </p>
     );

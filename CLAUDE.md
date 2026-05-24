@@ -94,8 +94,10 @@ decide si la pichanga se realiza o se cancela.)
   - Notificaciones in-app (tabla `notificaciones`): promovido/liberado/expirado/confirmado;
     se ven en /dashboard. Base para email/WhatsApp (delivery externo = pendiente).
   - La lista de espera ya puede pagar (compite por cupo). SQL: 06_notificaciones, 07_logica_cupos.
-- **Fase 4:** Módulo financiero: balance por evento (ingresos, egresos, ganancia, morosos)
-  y balance general consolidado por rango de fechas.
+- **Fase 4 (EN CURSO):** Módulo financiero en /admin/finanzas (sin SQL nuevo; agrega en la app
+  con RLS de admin). Consolidado con filtro por rango de fechas (ingresos/egresos/ganancia/morosos)
+  y detalle por evento /admin/finanzas/[id] con lista de inscritos y morosos.
+  Ingresos = pagos aprobados; egresos = costo_sede + costo_arbitraje; moroso = pendiente sin pago.
 
 ## Convenciones
 - Código y UI en español. Variables/tablas en español (ya establecido en el esquema).

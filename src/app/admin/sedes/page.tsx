@@ -44,13 +44,13 @@ export default async function SedesPage({
       )}
 
       {sedes.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="text-tenue">
           No hay sedes todavía. Crea la primera con “Nueva sede”.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <div className="overflow-x-auto rounded-lg border border-borde">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-gray-600">
+            <thead className="bg-fondo text-left text-tenue">
               <tr>
                 <th className="p-3">Nombre</th>
                 <th className="p-3">Dirección</th>
@@ -62,20 +62,20 @@ export default async function SedesPage({
             </thead>
             <tbody>
               {sedes.map((sede) => (
-                <tr key={sede.id} className="border-t border-gray-100">
+                <tr key={sede.id} className="border-t border-borde">
                   <td className="p-3 font-medium">{sede.nombre}</td>
-                  <td className="p-3 text-gray-600">{sede.direccion ?? '—'}</td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 text-tenue">{sede.direccion ?? '—'}</td>
+                  <td className="p-3 text-tenue">
                     {sede.telefono_contacto ?? '—'}
                   </td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 text-tenue">
                     {soles.format(sede.precio_por_hora)}
                   </td>
                   <td className="p-3">
                     {sede.activo ? (
                       <span className="text-green-700">Activa</span>
                     ) : (
-                      <span className="text-gray-400">Inactiva</span>
+                      <span className="text-tenue">Inactiva</span>
                     )}
                   </td>
                   <td className="p-3">
@@ -95,7 +95,7 @@ export default async function SedesPage({
                         />
                         <button
                           type="submit"
-                          className="text-gray-600 hover:underline"
+                          className="text-tenue hover:underline"
                         >
                           {sede.activo ? 'Desactivar' : 'Activar'}
                         </button>

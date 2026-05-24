@@ -16,8 +16,8 @@ import {
 } from '@/lib/types';
 import { isoADatetimeLocalLima } from '@/lib/fechas';
 
-const input = 'border border-gray-300 p-2 w-full rounded';
-const label = 'block text-sm font-medium text-gray-700 mb-1';
+const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
+const label = 'block text-sm font-medium text-texto mb-1';
 
 type Opcion = { id: string; nombre: string; precio_por_hora: number };
 
@@ -32,22 +32,24 @@ export function EventoForm({
   action,
   sedes,
   arbitros,
+  categorias,
   inicial,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>;
   sedes: Opcion[];
   arbitros: Opcion[];
+  categorias: { id: string; nombre: string }[];
   inicial?: Evento;
 }) {
   const [estado, formAction, pending] = useActionState(action, {});
 
   const [sedeId, setSedeId] = useState(inicial?.sede_id ?? '');
   const [arbitroId, setArbitroId] = useState(inicial?.arbitro_id ?? '');
-  const [duracion, setDuracion] = useState(inicial?.duracion_horas ?? 1.5);
+  const [duracion, setDuracion] = useState(inicial?.duracion_horas ?? 2);
   const [costoSede, setCostoSede] = useState(inicial?.costo_sede ?? 0);
   const [costoArbitraje, setCostoArbitraje] = useState(inicial?.costo_arbitraje ?? 0);
   const [porcentaje, setPorcentaje] = useState(inicial?.porcentaje_ganancia ?? 0);
-  const [cupos, setCupos] = useState(inicial?.cupos_totales ?? 10);
+  const [cupos, setCupos] = useState(inicial?.cupos_totales ?? 20);
 
   const precioDe = (id: string, lista: Opcion[]) =>
     lista.find((x) => x.id === id)?.precio_por_hora ?? 0;
@@ -81,6 +83,41 @@ export function EventoForm({
       {inicial && <input type="hidden" name="id" value={inicial.id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className={label} htmlFor="tipo">
+            Tipo de evento
+          </label>
+          <select
+            id="tipo"
+            name="tipo"
+            className={input}
+            defaultValue={inicial?.tipo ?? 'pichanga'}
+          >
+            <option value="pichanga">Pichanga</option>
+            <option value="amistoso">Amistoso</option>
+            <option value="torneo">Torneo</option>
+          </select>
+        </div>
+
+        <div>
+          <label className={label} htmlFor="categoria_id">
+            Categoría
+          </label>
+          <select
+            id="categoria_id"
+            name="categoria_id"
+            className={input}
+            defaultValue={inicial?.categoria_id ?? ''}
+          >
+            <option value="">Sin categoría</option>
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <label className={label} htmlFor="sede_id">
             Sede *
@@ -176,7 +213,7 @@ export function EventoForm({
             onChange={(e) => alCambiarDuracion(Number(e.target.value))}
             required
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-tenue">
             En pasos de media hora (p. ej. 1.5 = 1 h 30 min).
           </p>
         </div>
@@ -262,18 +299,18 @@ export function EventoForm({
         </div>
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-tenue">
         Los costos se importan como <strong>precio/hora × duración</strong> al
         elegir sede/árbitro o cambiar la duración. Puedes ajustarlos a mano si
         hay un costo especial.
       </p>
 
       <div className="rounded-lg bg-orange-50 border border-orange-200 p-4">
-        <p className="text-sm text-gray-600">Costo por participante (estimado)</p>
+        <p className="text-sm text-tenue">Costo por participante (estimado)</p>
         <p className="text-2xl font-bold text-orange-700">
           {soles.format(costoPorParticipante)}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-tenue">
           (costo sede + arbitraje) × (1 + % ganancia) ÷ cupos totales
         </p>
       </div>
@@ -290,7 +327,7 @@ export function EventoForm({
         </button>
         <Link
           href="/admin/eventos"
-          className="px-4 py-2 rounded border border-gray-300 text-gray-700"
+          className="px-4 py-2 rounded border border-borde text-texto"
         >
           Cancelar
         </Link>

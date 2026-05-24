@@ -11,6 +11,8 @@ import { calcularCostoPorParticipante, type EstadoEvento, type EstadoForm } from
 import { datetimeLocalALimaISO } from '@/lib/fechas';
 
 type CamposValidados = {
+  tipo: string;
+  categoria_id: string | null;
   sede_id: string;
   arbitro_id: string | null;
   fecha_hora_evento: string;
@@ -31,6 +33,11 @@ function num(formData: FormData, name: string): number {
 function validar(
   formData: FormData,
 ): { ok: true; campos: CamposValidados } | { ok: false; error: string } {
+  const tipoRaw = (formData.get('tipo') as string | null)?.trim() ?? 'pichanga';
+  const tipo = ['pichanga', 'amistoso', 'torneo'].includes(tipoRaw) ? tipoRaw : 'pichanga';
+  const categoriaRaw = (formData.get('categoria_id') as string | null)?.trim() ?? '';
+  const categoria_id = categoriaRaw === '' ? null : categoriaRaw;
+
   const sede_id = (formData.get('sede_id') as string | null)?.trim() ?? '';
   if (!sede_id) return { ok: false, error: 'Debes elegir una sede.' };
 
@@ -96,6 +103,8 @@ function validar(
   return {
     ok: true,
     campos: {
+      tipo,
+      categoria_id,
       sede_id,
       arbitro_id,
       fecha_hora_evento,

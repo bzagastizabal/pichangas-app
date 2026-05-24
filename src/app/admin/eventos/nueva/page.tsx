@@ -6,7 +6,7 @@ import { crearEvento } from '../actions';
 
 export default async function NuevoEventoPage() {
   const supabase = await createClient();
-  const [{ data: sedes }, { data: arbitros }] = await Promise.all([
+  const [{ data: sedes }, { data: arbitros }, { data: categorias }] = await Promise.all([
     supabase
       .from('sedes')
       .select('id, nombre, precio_por_hora')
@@ -17,6 +17,7 @@ export default async function NuevoEventoPage() {
       .select('id, nombre, precio_por_hora')
       .eq('activo', true)
       .order('nombre'),
+    supabase.from('categorias').select('id, nombre').eq('activo', true).order('nombre'),
   ]);
 
   return (
@@ -26,6 +27,7 @@ export default async function NuevoEventoPage() {
         action={crearEvento}
         sedes={sedes ?? []}
         arbitros={arbitros ?? []}
+        categorias={categorias ?? []}
       />
     </div>
   );

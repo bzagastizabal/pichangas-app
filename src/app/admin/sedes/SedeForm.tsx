@@ -7,8 +7,8 @@ import { useActionState } from 'react';
 import Link from 'next/link';
 import type { EstadoForm, Sede } from '@/lib/types';
 
-const input = 'border border-gray-300 p-2 w-full rounded';
-const label = 'block text-sm font-medium text-gray-700 mb-1';
+const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
+const label = 'block text-sm font-medium text-texto mb-1';
 
 export function SedeForm({
   action,
@@ -89,7 +89,7 @@ export function SedeForm({
           className={input}
           defaultValue={inicial?.precio_por_hora ?? 0}
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-tenue">
           Se usa para calcular el costo de sede al crear un evento.
         </p>
       </div>
@@ -128,7 +128,7 @@ export function SedeForm({
         </button>
         <Link
           href="/admin/sedes"
-          className="px-4 py-2 rounded border border-gray-300 text-gray-700"
+          className="px-4 py-2 rounded border border-borde text-texto"
         >
           Cancelar
         </Link>

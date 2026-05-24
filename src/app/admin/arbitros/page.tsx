@@ -43,13 +43,13 @@ export default async function ArbitrosPage({
       )}
 
       {arbitros.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="text-tenue">
           No hay árbitros todavía. Crea el primero con “Nuevo árbitro”.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <div className="overflow-x-auto rounded-lg border border-borde">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-gray-600">
+            <thead className="bg-fondo text-left text-tenue">
               <tr>
                 <th className="p-3">Nombre</th>
                 <th className="p-3">Teléfono</th>
@@ -62,23 +62,23 @@ export default async function ArbitrosPage({
             </thead>
             <tbody>
               {arbitros.map((arbitro) => (
-                <tr key={arbitro.id} className="border-t border-gray-100">
+                <tr key={arbitro.id} className="border-t border-borde">
                   <td className="p-3 font-medium">{arbitro.nombre}</td>
-                  <td className="p-3 text-gray-600">{arbitro.telefono ?? '—'}</td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 text-tenue">{arbitro.telefono ?? '—'}</td>
+                  <td className="p-3 text-tenue">
                     {soles.format(arbitro.precio_por_hora)}
                   </td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 text-tenue">
                     {soles.format(arbitro.tarifa_partido)}
                   </td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 text-tenue">
                     {arbitro.calificacion ? `${arbitro.calificacion}★` : '—'}
                   </td>
                   <td className="p-3">
                     {arbitro.activo ? (
                       <span className="text-green-700">Activo</span>
                     ) : (
-                      <span className="text-gray-400">Inactivo</span>
+                      <span className="text-tenue">Inactivo</span>
                     )}
                   </td>
                   <td className="p-3">
@@ -98,7 +98,7 @@ export default async function ArbitrosPage({
                         />
                         <button
                           type="submit"
-                          className="text-gray-600 hover:underline"
+                          className="text-tenue hover:underline"
                         >
                           {arbitro.activo ? 'Desactivar' : 'Activar'}
                         </button>

@@ -15,7 +15,7 @@ const soles = new Intl.NumberFormat('es-PE', {
 
 const colorEstado: Record<EstadoEvento, string> = {
   abierta: 'bg-green-100 text-green-800',
-  cerrada: 'bg-gray-100 text-gray-700',
+  cerrada: 'bg-fondo text-texto',
   cancelada: 'bg-red-100 text-red-700',
   finalizada: 'bg-blue-100 text-blue-800',
 };
@@ -54,7 +54,7 @@ export default async function EventosPage({
       )}
 
       {eventos.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="text-tenue">
           No hay eventos todavía. Crea el primero con “Nuevo evento”.
         </p>
       ) : (
@@ -62,12 +62,12 @@ export default async function EventosPage({
           {eventos.map((ev) => (
             <div
               key={ev.id}
-              className="rounded-lg border border-gray-200 p-4 space-y-3"
+              className="rounded-lg border border-borde p-4 space-y-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">{ev.sedes?.nombre ?? 'Sede ?'}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-tenue">
                     {formatearFechaLima(ev.fecha_hora_evento)}
                     {ev.arbitros?.nombre ? ` · árbitro: ${ev.arbitros.nombre}` : ''}
                   </p>
@@ -79,7 +79,7 @@ export default async function EventosPage({
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-texto">
                 <span>Duración: {ev.duracion_horas} h</span>
                 <span>Cupos: {ev.cupos_totales}</span>
                 <span>Mínimo: {ev.minimo_requerido}</span>
@@ -87,20 +87,28 @@ export default async function EventosPage({
                 <span>Límite pago: {formatearFechaLima(ev.fecha_hora_limite_pago)}</span>
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-tenue">
                 Enlace de inscripción:{' '}
-                <code className="bg-gray-100 px-1 rounded">
+                <Link
+                  href={`/inscribir/${ev.slug_inscripcion}`}
+                  className="text-orange-600 hover:underline"
+                >
                   /inscribir/{ev.slug_inscripcion}
-                </code>{' '}
-                <span className="text-gray-400">(página pública: próximo paso)</span>
+                </Link>
               </p>
 
-              <div className="flex flex-wrap items-center gap-4 border-t border-gray-100 pt-3">
+              <div className="flex flex-wrap items-center gap-4 border-t border-borde pt-3">
                 <Link
                   href={`/admin/eventos/${ev.id}/editar`}
                   className="text-sm text-orange-600 hover:underline"
                 >
                   Editar
+                </Link>
+                <Link
+                  href={`/admin/eventos/${ev.id}/participantes`}
+                  className="text-sm text-orange-600 hover:underline"
+                >
+                  Participantes
                 </Link>
 
                 <form action={cambiarEstadoEvento} className="flex items-center gap-2">
@@ -108,7 +116,7 @@ export default async function EventosPage({
                   <select
                     name="estado"
                     defaultValue={ev.estado}
-                    className="border border-gray-300 rounded px-2 py-1 text-sm"
+                    className="border border-borde rounded px-2 py-1 text-sm bg-tarjeta text-texto"
                   >
                     {estados.map((e) => (
                       <option key={e} value={e}>
@@ -116,7 +124,7 @@ export default async function EventosPage({
                       </option>
                     ))}
                   </select>
-                  <button type="submit" className="text-sm text-gray-600 hover:underline">
+                  <button type="submit" className="text-sm text-tenue hover:underline">
                     Cambiar estado
                   </button>
                 </form>

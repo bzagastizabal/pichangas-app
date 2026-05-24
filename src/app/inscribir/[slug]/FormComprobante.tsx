@@ -6,7 +6,7 @@
 import { useActionState } from 'react';
 import { subirComprobante } from './actions';
 
-const input = 'border border-gray-300 p-2 w-full rounded';
+const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 
 export function FormComprobante({
   inscripcionId,
@@ -22,7 +22,7 @@ export function FormComprobante({
       <input type="hidden" name="inscripcion_id" value={inscripcionId} />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="metodo">
+        <label className="block text-sm font-medium text-texto mb-1" htmlFor="metodo">
           Método de pago
         </label>
         <select id="metodo" name="metodo" className={input} defaultValue="yape">
@@ -33,7 +33,7 @@ export function FormComprobante({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="monto_declarado">
+        <label className="block text-sm font-medium text-texto mb-1" htmlFor="monto_declarado">
           Monto pagado (S/)
         </label>
         <input
@@ -48,7 +48,7 @@ export function FormComprobante({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="comprobante">
+        <label className="block text-sm font-medium text-texto mb-1" htmlFor="comprobante">
           Comprobante (imagen o PDF, máx. 5 MB)
         </label>
         <input

@@ -28,34 +28,42 @@ export default async function AdminHomePage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
           href="/admin/eventos"
-          className="block rounded-lg border border-gray-200 p-6 hover:border-orange-500 hover:shadow-sm transition"
+          className="block rounded-lg border border-borde p-6 hover:border-orange-500 hover:shadow-sm transition"
         >
           <h2 className="text-lg font-semibold">Eventos 🏀</h2>
-          <p className="text-sm text-gray-500">Pichangas: fechas, cupos y costos.</p>
+          <p className="text-sm text-tenue">Pichangas: fechas, cupos y costos.</p>
           <p className="mt-2 text-3xl font-bold text-orange-600">{totalEventos ?? 0}</p>
         </Link>
         <Link
           href="/admin/pagos"
-          className="block rounded-lg border border-gray-200 p-6 hover:border-orange-500 hover:shadow-sm transition"
+          className="block rounded-lg border border-borde p-6 hover:border-orange-500 hover:shadow-sm transition"
         >
           <h2 className="text-lg font-semibold">Pagos 💳</h2>
-          <p className="text-sm text-gray-500">Comprobantes por revisar.</p>
+          <p className="text-sm text-tenue">Comprobantes por revisar.</p>
           <p className="mt-2 text-3xl font-bold text-orange-600">{pagosPorRevisar ?? 0}</p>
         </Link>
         <Link
+          href="/admin/finanzas"
+          className="block rounded-lg border border-borde p-6 hover:border-orange-500 hover:shadow-sm transition"
+        >
+          <h2 className="text-lg font-semibold">Finanzas 📊</h2>
+          <p className="text-sm text-tenue">Balance por evento y consolidado.</p>
+          <p className="mt-2 text-3xl font-bold text-orange-600">Ver →</p>
+        </Link>
+        <Link
           href="/admin/sedes"
-          className="block rounded-lg border border-gray-200 p-6 hover:border-orange-500 hover:shadow-sm transition"
+          className="block rounded-lg border border-borde p-6 hover:border-orange-500 hover:shadow-sm transition"
         >
           <h2 className="text-lg font-semibold">Sedes 📍</h2>
-          <p className="text-sm text-gray-500">Canchas donde se juegan las pichangas.</p>
+          <p className="text-sm text-tenue">Canchas donde se juegan las pichangas.</p>
           <p className="mt-2 text-3xl font-bold text-orange-600">{totalSedes ?? 0}</p>
         </Link>
         <Link
           href="/admin/arbitros"
-          className="block rounded-lg border border-gray-200 p-6 hover:border-orange-500 hover:shadow-sm transition"
+          className="block rounded-lg border border-borde p-6 hover:border-orange-500 hover:shadow-sm transition"
         >
           <h2 className="text-lg font-semibold">Árbitros 🧑‍⚖️</h2>
-          <p className="text-sm text-gray-500">Árbitros disponibles y sus tarifas.</p>
+          <p className="text-sm text-tenue">Árbitros disponibles y sus tarifas.</p>
           <p className="mt-2 text-3xl font-bold text-orange-600">{totalArbitros ?? 0}</p>
         </Link>
       </div>

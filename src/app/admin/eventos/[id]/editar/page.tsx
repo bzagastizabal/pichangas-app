@@ -15,11 +15,13 @@ export default async function EditarEventoPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: evento }, { data: sedes }, { data: arbitros }] = await Promise.all([
-    supabase.from('eventos').select('*').eq('id', id).single(),
-    supabase.from('sedes').select('id, nombre, precio_por_hora').order('nombre'),
-    supabase.from('arbitros').select('id, nombre, precio_por_hora').order('nombre'),
-  ]);
+  const [{ data: evento }, { data: sedes }, { data: arbitros }, { data: categorias }] =
+    await Promise.all([
+      supabase.from('eventos').select('*').eq('id', id).single(),
+      supabase.from('sedes').select('id, nombre, precio_por_hora').order('nombre'),
+      supabase.from('arbitros').select('id, nombre, precio_por_hora').order('nombre'),
+      supabase.from('categorias').select('id, nombre').order('nombre'),
+    ]);
 
   if (!evento) notFound();
 
@@ -30,6 +32,7 @@ export default async function EditarEventoPage({
         action={actualizarEvento}
         sedes={sedes ?? []}
         arbitros={arbitros ?? []}
+        categorias={categorias ?? []}
         inicial={evento as Evento}
       />
     </div>

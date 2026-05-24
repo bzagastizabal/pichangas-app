@@ -6,8 +6,11 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+
+const campo = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 
 function RegistroForm() {
   const router = useRouter();
@@ -15,6 +18,7 @@ function RegistroForm() {
   const next = searchParams.get('next') || '/dashboard';
   const supabase = createClient();
   const [nombre, setNombre] = useState('');
+  const [dni, setDni] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,8 +33,8 @@ function RegistroForm() {
       email,
       password,
       options: {
-        // Estos datos los lee el trigger SQL para llenar la tabla `perfiles`.
-        data: { nombre_completo: nombre, telefono },
+        // El trigger lee estos datos para llenar el perfil (incl. dni).
+        data: { nombre_completo: nombre, telefono, dni },
       },
     });
 
@@ -61,14 +65,17 @@ function RegistroForm() {
 
   return (
     <div className="max-w-sm mx-auto mt-16 p-6 space-y-4">
+      <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-20 w-auto mx-auto" />
       <h1 className="text-2xl font-bold">Crear cuenta</h1>
-      <input className="border p-2 w-full rounded" placeholder="Nombre completo"
+      <input className={campo} placeholder="Nombre completo"
         value={nombre} onChange={(e) => setNombre(e.target.value)} />
-      <input className="border p-2 w-full rounded" placeholder="Teléfono"
+      <input className={campo} placeholder="DNI"
+        value={dni} onChange={(e) => setDni(e.target.value)} />
+      <input className={campo} placeholder="Teléfono"
         value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-      <input className="border p-2 w-full rounded" type="email" placeholder="Correo"
+      <input className={campo} type="email" placeholder="Correo"
         value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input className="border p-2 w-full rounded" type="password" placeholder="Contraseña"
+      <input className={campo} type="password" placeholder="Contraseña"
         value={password} onChange={(e) => setPassword(e.target.value)} />
       <button onClick={handleRegistro} disabled={cargando}
         className="bg-orange-600 text-white p-2 w-full rounded disabled:opacity-50">

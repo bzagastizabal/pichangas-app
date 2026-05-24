@@ -50,17 +50,17 @@ export default async function PagosPage() {
       <h1 className="text-2xl font-bold">Pagos por revisar</h1>
 
       {pagos.length === 0 ? (
-        <p className="text-gray-500">No hay comprobantes pendientes de revisión. 🎉</p>
+        <p className="text-tenue">No hay comprobantes pendientes de revisión. 🎉</p>
       ) : (
         <div className="space-y-4">
           {pagos.map((p, i) => (
-            <div key={p.id} className="rounded-lg border border-gray-200 p-4 space-y-3">
+            <div key={p.id} className="rounded-lg border border-borde p-4 space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">
                     {p.inscripciones?.perfiles?.nombre_completo ?? 'Jugador'}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-tenue">
                     {p.inscripciones?.eventos?.sedes?.nombre ?? 'Evento'} ·{' '}
                     {p.inscripciones?.eventos
                       ? formatearFechaLima(p.inscripciones.eventos.fecha_hora_evento)
@@ -71,11 +71,11 @@ export default async function PagosPage() {
                   <p className="font-bold text-orange-700">
                     {soles.format(p.monto_declarado)}
                   </p>
-                  <p className="text-gray-500">{p.metodo}</p>
+                  <p className="text-tenue">{p.metodo}</p>
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-tenue">
                 Subido: {formatearFechaLima(p.fecha_subida)}
               </p>
 
@@ -89,10 +89,10 @@ export default async function PagosPage() {
                   Ver comprobante →
                 </a>
               ) : (
-                <p className="text-sm text-gray-400">Sin comprobante adjunto.</p>
+                <p className="text-sm text-tenue">Sin comprobante adjunto.</p>
               )}
 
-              <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
+              <div className="flex flex-wrap items-center gap-3 border-t border-borde pt-3">
                 <form action={aprobarPago}>
                   <input type="hidden" name="id" value={p.id} />
                   <button
@@ -108,7 +108,7 @@ export default async function PagosPage() {
                   <input
                     name="motivo"
                     placeholder="Motivo del rechazo (opcional)"
-                    className="border border-gray-300 rounded px-2 py-1 text-sm w-56"
+                    className="border border-borde rounded px-2 py-1 text-sm w-56"
                   />
                   <button
                     type="submit"
