@@ -1,40 +1,72 @@
-// src/app/admin/pagos/page.tsx
-// Panel de aprobación de pagos: lista los comprobantes 'en_revision', muestra
-// cada uno (URL firmada temporal) y permite aprobar o rechazar.
-// Orden por fecha_subida ascendente: "el que paga primero" aparece primero.
+// Reporte de pagos con filtros (en revisión / aprobados / rechazados / todos).
+// Muestra quién validó y cuándo, y permite ver el comprobante aunque ya esté
+// aprobado. Los 'en_revision' se pueden aprobar/rechazar aquí.
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import type { Pago } from '@/lib/types';
+import type { EstadoPago, Pago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { aprobarPago, rechazarPago } from './actions';
 
-const soles = new Intl.NumberFormat('es-PE', {
-  style: 'currency',
-  currency: 'PEN',
-});
+const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
-type PagoAdmin = Pago & {
+const colorEstado: Record<EstadoPago, string> = {
+  en_revision: 'text-sky-400',
+  aprobado: 'text-green-400',
+  rechazado: 'text-red-400',
+};
+const etiquetaEstado: Record<EstadoPago, string> = {
+  en_revision: 'en revisión',
+  aprobado: 'aprobado',
+  rechazado: 'rechazado',
+};
+
+const filtros = [
+  { v: 'en_revision', l: 'En revisión' },
+  { v: 'aprobado', l: 'Aprobados' },
+  { v: 'rechazado', l: 'Rechazados' },
+  { v: 'todos', l: 'Todos' },
+];
+
+type PagoFila = Pago & {
   inscripciones: {
-    usuario_id: string;
     perfiles: { nombre_completo: string | null } | null;
-    eventos: {
-      fecha_hora_evento: string;
-      sedes: { nombre: string } | null;
-    } | null;
+    eventos: { fecha_hora_evento: string; sedes: { nombre: string } | null } | null;
   } | null;
 };
 
-export default async function PagosPage() {
+export default async function PagosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ estado?: string }>;
+}) {
+  const sp = await searchParams;
+  const estado = sp.estado ?? 'en_revision';
   const supabase = await createClient();
-  const { data } = await supabase
+
+  let q = supabase
     .from('pagos')
     .select(
-      '*, inscripciones(usuario_id, perfiles(nombre_completo), eventos(fecha_hora_evento, sedes(nombre)))',
+      '*, inscripciones(perfiles(nombre_completo), eventos(fecha_hora_evento, sedes(nombre)))',
     )
-    .eq('estado', 'en_revision')
-    .order('fecha_subida', { ascending: true });
-  const pagos = (data as PagoAdmin[]) ?? [];
+    .order('fecha_subida', { ascending: false });
+  if (estado !== 'todos') q = q.eq('estado', estado);
+  const { data } = await q;
+  const pagos = (data as unknown as PagoFila[]) ?? [];
 
-  // URL firmada (5 min) por cada comprobante para poder verlo.
+  // Nombres de los administradores que validaron.
+  const ids = [...new Set(pagos.map((p) => p.validado_por).filter(Boolean))] as string[];
+  let validadores: Record<string, string> = {};
+  if (ids.length) {
+    const { data: ap } = await supabase.from('perfiles').select('id, nombre_completo').in('id', ids);
+    validadores = Object.fromEntries(
+      ((ap as { id: string; nombre_completo: string | null }[]) ?? []).map((a) => [
+        a.id,
+        a.nombre_completo ?? '—',
+      ]),
+    );
+  }
+
+  // URLs firmadas para ver los comprobantes.
   const urls = await Promise.all(
     pagos.map(async (p) => {
       if (!p.url_comprobante || p.comprobante_eliminado) return null;
@@ -47,79 +79,108 @@ export default async function PagosPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Pagos por revisar</h1>
+      <h1 className="text-2xl font-bold">Pagos</h1>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        {filtros.map((f) => (
+          <Link
+            key={f.v}
+            href={`/admin/pagos?estado=${f.v}`}
+            className={`rounded-full px-3 py-1 ${
+              estado === f.v ? 'bg-orange-600 text-white' : 'border border-borde text-tenue hover:border-orange-500'
+            }`}
+          >
+            {f.l}
+          </Link>
+        ))}
+      </div>
 
       {pagos.length === 0 ? (
-        <p className="text-tenue">No hay comprobantes pendientes de revisión. 🎉</p>
+        <p className="text-tenue">No hay pagos en esta categoría.</p>
       ) : (
-        <div className="space-y-4">
-          {pagos.map((p, i) => (
-            <div key={p.id} className="rounded-lg border border-borde p-4 space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">
-                    {p.inscripciones?.perfiles?.nombre_completo ?? 'Jugador'}
-                  </p>
-                  <p className="text-sm text-tenue">
-                    {p.inscripciones?.eventos?.sedes?.nombre ?? 'Evento'} ·{' '}
-                    {p.inscripciones?.eventos
-                      ? formatearFechaLima(p.inscripciones.eventos.fecha_hora_evento)
-                      : ''}
-                  </p>
-                </div>
-                <div className="text-right text-sm">
-                  <p className="font-bold text-orange-700">
+        <div className="overflow-x-auto rounded-lg border border-borde">
+          <table className="w-full text-sm">
+            <thead className="bg-fondo text-left text-tenue">
+              <tr>
+                <th className="p-3">Jugador</th>
+                <th className="p-3">Evento</th>
+                <th className="p-3 text-right">Monto</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3">Validado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagos.map((p, i) => (
+                <tr key={p.id} className="border-t border-borde align-top">
+                  <td className="p-3">
+                    <p className="font-medium">{p.inscripciones?.perfiles?.nombre_completo ?? 'Jugador'}</p>
+                    <p className="text-xs text-tenue">{formatearFechaLima(p.fecha_subida)}</p>
+                  </td>
+                  <td className="p-3 text-tenue">
+                    {p.inscripciones?.eventos?.sedes?.nombre ?? 'Evento'}
+                    {p.inscripciones?.eventos && (
+                      <span className="block text-xs">
+                        {formatearFechaLima(p.inscripciones.eventos.fecha_hora_evento)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-3 text-right">
                     {soles.format(p.monto_declarado)}
-                  </p>
-                  <p className="text-tenue">{p.metodo}</p>
-                </div>
-              </div>
-
-              <p className="text-xs text-tenue">
-                Subido: {formatearFechaLima(p.fecha_subida)}
-              </p>
-
-              {urls[i] ? (
-                <a
-                  href={urls[i]!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block text-sm text-orange-600 hover:underline"
-                >
-                  Ver comprobante →
-                </a>
-              ) : (
-                <p className="text-sm text-tenue">Sin comprobante adjunto.</p>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3 border-t border-borde pt-3">
-                <form action={aprobarPago}>
-                  <input type="hidden" name="id" value={p.id} />
-                  <button
-                    type="submit"
-                    className="bg-green-600 text-white text-sm px-4 py-2 rounded"
-                  >
-                    Aprobar
-                  </button>
-                </form>
-
-                <form action={rechazarPago} className="flex items-center gap-2">
-                  <input type="hidden" name="id" value={p.id} />
-                  <input
-                    name="motivo"
-                    placeholder="Motivo del rechazo (opcional)"
-                    className="border border-borde rounded px-2 py-1 text-sm w-56"
-                  />
-                  <button
-                    type="submit"
-                    className="border border-red-300 text-red-600 text-sm px-4 py-2 rounded"
-                  >
-                    Rechazar
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))}
+                    <span className="block text-xs text-tenue">{p.metodo}</span>
+                  </td>
+                  <td className={`p-3 ${colorEstado[p.estado]}`}>
+                    {etiquetaEstado[p.estado]}
+                    {p.estado === 'rechazado' && p.motivo_rechazo && (
+                      <span className="block text-xs text-tenue">{p.motivo_rechazo}</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-tenue text-xs">
+                    {p.validado_por ? (
+                      <>
+                        {validadores[p.validado_por] ?? '—'}
+                        {p.fecha_validacion && <span className="block">{formatearFechaLima(p.fecha_validacion)}</span>}
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-col items-end gap-2">
+                      {urls[i] ? (
+                        <a href={urls[i]!} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
+                          Ver comprobante
+                        </a>
+                      ) : (
+                        <span className="text-tenue">sin archivo</span>
+                      )}
+                      {p.estado === 'en_revision' && (
+                        <div className="flex flex-col items-end gap-1">
+                          <form action={aprobarPago}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <button type="submit" className="rounded bg-green-600 px-3 py-1 text-white">
+                              Aprobar
+                            </button>
+                          </form>
+                          <form action={rechazarPago} className="flex items-center gap-1">
+                            <input type="hidden" name="id" value={p.id} />
+                            <input
+                              name="motivo"
+                              placeholder="Motivo"
+                              className="w-28 rounded border border-borde bg-campo px-2 py-1 text-texto"
+                            />
+                            <button type="submit" className="rounded border border-red-400 px-2 py-1 text-red-400">
+                              Rechazar
+                            </button>
+                          </form>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
