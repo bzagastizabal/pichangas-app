@@ -6,6 +6,7 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import type { EstadoForm, Sede } from '@/lib/types';
+import { TelefonoInput } from '@/components/TelefonoInput';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 const label = 'block text-sm font-medium text-texto mb-1';
@@ -64,16 +65,8 @@ export function SedeForm({
       </div>
 
       <div>
-        <label className={label} htmlFor="telefono_contacto">
-          Teléfono de contacto
-        </label>
-        <input
-          id="telefono_contacto"
-          name="telefono_contacto"
-          className={input}
-          defaultValue={inicial?.telefono_contacto ?? ''}
-          placeholder="999 999 999"
-        />
+        <label className={label}>Teléfono de contacto</label>
+        <TelefonoInput name="telefono_contacto" defaultValue={inicial?.telefono_contacto} />
       </div>
 
       <div>

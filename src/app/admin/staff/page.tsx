@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import type { Staff } from '@/lib/types';
+import { TelefonoInput } from '@/components/TelefonoInput';
 import {
   crearStaff,
   marcarDefault,
@@ -34,7 +35,7 @@ export default async function StaffPage() {
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">WhatsApp</label>
-          <input name="whatsapp" className={input} placeholder="999 999 999" />
+          <TelefonoInput name="whatsapp" />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="es_default" />

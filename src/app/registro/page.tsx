@@ -9,6 +9,7 @@ import { Suspense, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { TelefonoInput } from '@/components/TelefonoInput';
 
 const campo = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 
@@ -71,8 +72,7 @@ function RegistroForm() {
         value={nombre} onChange={(e) => setNombre(e.target.value)} />
       <input className={campo} placeholder="DNI"
         value={dni} onChange={(e) => setDni(e.target.value)} />
-      <input className={campo} placeholder="Teléfono"
-        value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+      <TelefonoInput onChange={setTelefono} />
       <input className={campo} type="email" placeholder="Correo"
         value={email} onChange={(e) => setEmail(e.target.value)} />
       <input className={campo} type="password" placeholder="Contraseña"

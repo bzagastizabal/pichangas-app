@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Categoria } from '@/lib/types';
+import { TelefonoInput } from '@/components/TelefonoInput';
 import { guardarJugador } from '../../actions';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
@@ -57,7 +58,7 @@ export default async function EditarJugadorPage({
 
         <div>
           <label className="block text-sm font-medium text-texto mb-1">Teléfono</label>
-          <input name="telefono" className={input} defaultValue={perfil.telefono ?? ''} />
+          <TelefonoInput name="telefono" defaultValue={perfil.telefono} />
         </div>
 
         <div>

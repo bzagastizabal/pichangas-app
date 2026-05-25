@@ -5,6 +5,7 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import type { Arbitro, EstadoForm } from '@/lib/types';
+import { TelefonoInput } from '@/components/TelefonoInput';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 const label = 'block text-sm font-medium text-texto mb-1';
@@ -37,16 +38,8 @@ export function ArbitroForm({
       </div>
 
       <div>
-        <label className={label} htmlFor="telefono">
-          Teléfono
-        </label>
-        <input
-          id="telefono"
-          name="telefono"
-          className={input}
-          defaultValue={inicial?.telefono ?? ''}
-          placeholder="999 999 999"
-        />
+        <label className={label}>Teléfono</label>
+        <TelefonoInput name="telefono" defaultValue={inicial?.telefono} />
       </div>
 
       <div>

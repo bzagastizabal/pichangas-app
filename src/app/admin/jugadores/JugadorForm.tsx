@@ -1,16 +1,21 @@
 'use client';
 
-import { useActionState, useRef, useEffect } from 'react';
+import { useActionState, useRef, useEffect, useState } from 'react';
 import { crearJugador } from './actions';
+import { TelefonoInput } from '@/components/TelefonoInput';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 
 export function JugadorForm() {
   const [estado, formAction, pending] = useActionState(crearJugador, {});
   const ref = useRef<HTMLFormElement>(null);
+  const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
-    if (!pending && !estado.error) ref.current?.reset();
+    if (!pending && !estado.error) {
+      ref.current?.reset();
+      setResetKey((k) => k + 1);
+    }
   }, [pending, estado]);
 
   return (
@@ -26,7 +31,7 @@ export function JugadorForm() {
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">Teléfono</label>
-          <input name="telefono" className={input} />
+          <TelefonoInput key={resetKey} name="telefono" />
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">Correo (opcional)</label>

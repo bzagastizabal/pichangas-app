@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Staff } from '@/lib/types';
+import { TelefonoInput } from '@/components/TelefonoInput';
 import { guardarStaff } from '../../actions';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
@@ -38,7 +39,7 @@ export default async function EditarStaffPage({
         </div>
         <div>
           <label className="block text-sm font-medium text-texto mb-1">WhatsApp</label>
-          <input name="whatsapp" className={input} defaultValue={s.whatsapp ?? ''} />
+          <TelefonoInput name="whatsapp" defaultValue={s.whatsapp} />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="activo" defaultChecked={s.activo} />
