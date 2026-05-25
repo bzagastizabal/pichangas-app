@@ -1,21 +1,20 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { baseUrl } from '@/lib/url';
 import type { EstadoInscripcion, EstadoPago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { estadoPagoJugador, type EstadoPagoJugador } from '@/lib/estado-pago';
-import { aprobarPago } from '@/app/admin/pagos/actions';
-import { BotonEliminar } from '@/app/admin/BotonEliminar';
-import { agregarParticipante, generarLinkPago, quitarParticipante } from './actions';
-import { FormPagoAdmin } from './FormPagoAdmin';
+import { firmarTokenPago } from '@/lib/token-pago';
+import { agregarParticipante } from './actions';
+import { AccionesParticipante } from './AccionesParticipante';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
 const etiquetaPago: Record<EstadoPagoJugador, string> = {
   pagado: 'pagado',
   en_revision: 'en revisión',
-  pendiente: 'pago pendiente',
+  pendiente: 'pendiente',
   moroso: 'moroso',
 };
 const colorPago: Record<EstadoPagoJugador, string> = {
@@ -29,7 +28,6 @@ type Inscrito = {
   id: string;
   estado: EstadoInscripcion;
   usuario_id: string;
-  token_pago: string | null;
   fecha_reserva: string;
   perfiles: { nombre_completo: string | null; telefono: string | null } | null;
   pagos: { id: string; estado: EstadoPago; monto_declarado: number; fecha_validacion: string | null }[];
@@ -53,6 +51,7 @@ export default async function ParticipantesPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const base = await baseUrl();
 
   const { data: ev } = await supabase
     .from('eventos')
@@ -64,17 +63,11 @@ export default async function ParticipantesPage({
 
   const { data: insData } = await supabase
     .from('inscripciones')
-    .select('id, estado, usuario_id, token_pago, fecha_reserva, perfiles(nombre_completo, telefono), pagos(id, estado, monto_declarado, fecha_validacion)')
+    .select('id, estado, usuario_id, fecha_reserva, perfiles(nombre_completo, telefono), pagos(id, estado, monto_declarado, fecha_validacion)')
     .eq('evento_id', id)
     .order('fecha_reserva', { ascending: true });
   const inscritos = (insData as unknown as Inscrito[]) ?? [];
 
-  const h = await headers();
-  const host = h.get('host') ?? '';
-  const proto = /^(localhost|127\.|192\.|10\.)/.test(host) ? 'http' : 'https';
-  const base = host ? `${proto}://${host}` : '';
-
-  // Jugadores disponibles para agregar (activos, no inscritos).
   const { data: todos } = await supabase
     .from('perfiles')
     .select('id, nombre_completo')
@@ -85,7 +78,6 @@ export default async function ParticipantesPage({
     (p) => !inscritosIds.has(p.id),
   );
 
-  // Si el evento tiene categoría, separamos los jugadores de esa categoría.
   let idsCategoria = new Set<string>();
   if (evento.categoria_id) {
     const { data: pc } = await supabase
@@ -166,87 +158,68 @@ export default async function ParticipantesPage({
         )}
       </form>
 
-      <div className="space-y-3">
-        {inscritos.map((i) => {
-          const ep = estadoDe(i);
-          const aprobado = i.pagos.find((p) => p.estado === 'aprobado');
-          const enRevision = i.pagos.find((p) => p.estado === 'en_revision');
-          return (
-            <div key={i.id} className="rounded-lg border border-borde p-4 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">
-                    {i.perfiles?.nombre_completo ?? 'Jugador'}
-                    <span className={`ml-2 text-xs rounded bg-white/5 px-2 py-0.5 ${colorPago[ep]}`}>
-                      {etiquetaPago[ep]}
-                    </span>
-                  </p>
-                  <p className="text-xs text-tenue">
-                    {i.estado}
-                    {i.perfiles?.telefono ? ` · ${i.perfiles.telefono}` : ''}
-                    {' · inscrito '}{formatearFechaLima(i.fecha_reserva)}
-                    {aprobado?.fecha_validacion
-                      ? ` · confirmado ${formatearFechaLima(aprobado.fecha_validacion)}`
-                      : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {aprobado && (
-                    <span className="text-sm text-green-400">
-                      {soles.format(aprobado.monto_declarado)}
-                    </span>
-                  )}
-                  <BotonEliminar
-                    action={quitarParticipante}
-                    id={i.id}
-                    nombre={i.perfiles?.nombre_completo ?? 'este participante'}
-                  />
-                </div>
-              </div>
-
-              {enRevision && (
-                <form action={aprobarPago} className="flex items-center gap-2">
-                  <input type="hidden" name="id" value={enRevision.id} />
-                  <span className="text-sm text-sky-400">
-                    comprobante en revisión ({soles.format(enRevision.monto_declarado)})
-                  </span>
-                  <button type="submit" className="text-sm bg-green-600 text-white px-3 py-1 rounded">
-                    Aprobar
-                  </button>
-                </form>
-              )}
-
-              {!aprobado && !enRevision && (
-                <FormPagoAdmin
-                  inscripcionId={i.id}
-                  usuarioId={i.usuario_id}
-                  montoSugerido={evento.costo_por_participante}
-                />
-              )}
-
-              <div className="text-xs text-tenue">
-                {i.token_pago ? (
-                  <span>
-                    Link de pago:{' '}
-                    <code className="bg-fondo px-1 rounded break-all">
-                      {base}/pagar/{i.token_pago}
-                    </code>
-                  </span>
-                ) : (
-                  <form action={generarLinkPago}>
-                    <input type="hidden" name="inscripcion_id" value={i.id} />
-                    <button type="submit" className="text-orange-600 hover:underline">
-                      Generar link de pago
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {inscritos.length === 0 && (
-          <p className="text-tenue">Aún no hay participantes. Agrega uno arriba.</p>
-        )}
+      <div className="overflow-x-auto rounded-lg border border-borde">
+        <table className="w-full text-sm">
+          <thead className="bg-fondo text-left text-tenue">
+            <tr>
+              <th className="p-3">Jugador</th>
+              <th className="p-3">Inscripción</th>
+              <th className="p-3">Pago</th>
+              <th className="p-3">Inscrito</th>
+              <th className="p-3 text-right">Monto</th>
+              <th className="p-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {inscritos.map((i) => {
+              const ep = estadoDe(i);
+              const aprobado = i.pagos.find((p) => p.estado === 'aprobado');
+              const enRevision = i.pagos.find((p) => p.estado === 'en_revision');
+              const linkPago = `${base}/pagar/${firmarTokenPago(i.id)}`;
+              const waMensaje =
+                `Hola ${i.perfiles?.nombre_completo ?? ''} 👋 Te apuntamos a la pichanga en ` +
+                `${evento.sedes?.nombre ?? ''} el ${formatearFechaLima(evento.fecha_hora_evento)}. ` +
+                `Confirma tu cupo subiendo tu pago (${soles.format(evento.costo_por_participante)}) aquí: ` +
+                `${linkPago}`;
+              return (
+                <tr key={i.id} className="border-t border-borde align-top">
+                  <td className="p-3">
+                    <p className="font-medium">{i.perfiles?.nombre_completo ?? 'Jugador'}</p>
+                    {i.perfiles?.telefono && (
+                      <p className="text-xs text-tenue">{i.perfiles.telefono}</p>
+                    )}
+                  </td>
+                  <td className="p-3 text-tenue">{i.estado}</td>
+                  <td className={`p-3 ${colorPago[ep]}`}>{etiquetaPago[ep]}</td>
+                  <td className="p-3 text-tenue">{formatearFechaLima(i.fecha_reserva)}</td>
+                  <td className="p-3 text-right">
+                    {aprobado ? soles.format(aprobado.monto_declarado) : '—'}
+                  </td>
+                  <td className="p-3">
+                    <AccionesParticipante
+                      inscripcionId={i.id}
+                      usuarioId={i.usuario_id}
+                      nombre={i.perfiles?.nombre_completo ?? 'Jugador'}
+                      telefono={i.perfiles?.telefono}
+                      linkPago={linkPago}
+                      waMensaje={waMensaje}
+                      montoSugerido={evento.costo_por_participante}
+                      pagoEnRevisionId={enRevision?.id ?? null}
+                      tienePagoVivo={Boolean(aprobado || enRevision)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+            {inscritos.length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-3 text-tenue">
+                  Aún no hay participantes. Agrega uno arriba.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

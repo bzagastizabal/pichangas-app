@@ -40,26 +40,6 @@ export async function quitarParticipante(formData: FormData): Promise<void> {
   refresh();
 }
 
-// Genera (si no existe) el token del link público de pago para esa inscripción.
-export async function generarLinkPago(formData: FormData): Promise<void> {
-  await requireAdmin();
-  const inscripcionId = formData.get('inscripcion_id') as string;
-  if (!inscripcionId) return;
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from('inscripciones')
-    .select('token_pago')
-    .eq('id', inscripcionId)
-    .maybeSingle();
-  if (!data?.token_pago) {
-    await admin
-      .from('inscripciones')
-      .update({ token_pago: crypto.randomUUID().replace(/-/g, '') })
-      .eq('id', inscripcionId);
-  }
-  refresh();
-}
-
 const MIMES_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const MAX_BYTES = 5 * 1024 * 1024;
 
