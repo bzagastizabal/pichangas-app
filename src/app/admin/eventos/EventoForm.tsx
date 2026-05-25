@@ -353,28 +353,28 @@ export function EventoForm({
 
       <div className="rounded-lg bg-orange-50 border border-orange-200 p-4 space-y-3">
         <div>
-          <p className="text-sm text-tenue">Costo por participante (redondeado)</p>
+          <p className="text-sm text-orange-800">Costo por participante (redondeado)</p>
           <p className="text-2xl font-bold text-orange-700">
             {soles.format(costoPorParticipante)}
           </p>
-          <p className="text-xs text-tenue">
+          <p className="text-xs text-orange-700/80">
             (costo sede + arbitraje) × (1 + % ganancia) ÷ cupos, redondeado hacia
             arriba a soles enteros.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2 border-t border-orange-200 pt-3 text-center">
           <div>
-            <p className="text-xs text-tenue">Egresos</p>
-            <p className="font-semibold text-texto">{soles.format(egresosTotales)}</p>
+            <p className="text-xs text-orange-800">Egresos</p>
+            <p className="font-semibold text-gray-900">{soles.format(egresosTotales)}</p>
           </div>
           <div>
-            <p className="text-xs text-tenue">Recauda (si se llena)</p>
-            <p className="font-semibold text-texto">
+            <p className="text-xs text-orange-800">Recauda (si se llena)</p>
+            <p className="font-semibold text-gray-900">
               {soles.format(recaudacionTotal)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-tenue">Ganancia estimada</p>
+            <p className="text-xs text-orange-800">Ganancia estimada</p>
             <p className="font-semibold text-green-700">
               {soles.format(gananciaTotal)}
             </p>

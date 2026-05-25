@@ -185,7 +185,9 @@ export default async function DashboardPage() {
               <li
                 key={n.id}
                 className={`rounded border p-2 text-sm ${
-                  n.leida ? 'border-borde text-tenue' : 'border-orange-200 bg-orange-50'
+                  n.leida
+                    ? 'border-borde text-tenue'
+                    : 'border-orange-500/40 bg-orange-500/10'
                 }`}
               >
                 <p>{n.mensaje}</p>
