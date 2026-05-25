@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { verificarTokenPago } from '@/lib/token-pago';
 import { formatearFechaLima } from '@/lib/fechas';
 import { FormVoucher } from './FormVoucher';
 
@@ -23,14 +24,17 @@ export default async function PagarPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const iid = verificarTokenPago(token);
   const admin = createAdminClient();
-  const { data } = await admin
-    .from('inscripciones')
-    .select(
-      'id, perfiles(nombre_completo), eventos(fecha_hora_evento, costo_por_participante, sedes(nombre)), pagos(estado)',
-    )
-    .eq('token_pago', token)
-    .maybeSingle();
+  const { data } = iid
+    ? await admin
+        .from('inscripciones')
+        .select(
+          'id, perfiles(nombre_completo), eventos(fecha_hora_evento, costo_por_participante, sedes(nombre)), pagos(estado)',
+        )
+        .eq('id', iid)
+        .maybeSingle()
+    : { data: null };
   const insc = data as unknown as InscPago | null;
 
   if (!insc || !insc.eventos) {

@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { baseUrl } from '@/lib/url';
+import { InvitarRegistro } from '@/app/admin/InvitarRegistro';
 import { JugadorForm } from './JugadorForm';
 import { BotonReiniciar } from './BotonReiniciar';
 import { alternarActivoJugador } from './actions';
@@ -25,6 +27,7 @@ export default async function JugadoresPage({
     .select('id, nombre_completo, dni, telefono, rol, activo')
     .order('nombre_completo');
   const perfiles = (data as PerfilFila[]) ?? [];
+  const base = await baseUrl();
 
   return (
     <div className="space-y-6">
@@ -50,6 +53,15 @@ export default async function JugadoresPage({
         </p>
       </div>
 
+      <div className="rounded-lg border border-borde p-4">
+        <h2 className="font-semibold mb-3">Invitar a registrarse (WhatsApp)</h2>
+        <InvitarRegistro base={base} />
+        <p className="mt-2 text-xs text-tenue">
+          Abre WhatsApp con un mensaje y el enlace de registro para que la persona
+          cree su propia cuenta.
+        </p>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-borde">
         <table className="w-full text-sm">
           <thead className="bg-fondo text-left text-tenue">
@@ -67,7 +79,9 @@ export default async function JugadoresPage({
               <tr key={p.id} className={`border-t border-borde ${p.activo ? '' : 'opacity-50'}`}>
                 <td className="p-3">{p.nombre_completo ?? '—'}</td>
                 <td className="p-3 text-tenue">{p.dni ?? '—'}</td>
-                <td className="p-3 text-tenue">{p.telefono ?? '—'}</td>
+                <td className="p-3 text-tenue"><a href={`https://wa.me/${p.telefono}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  {p.telefono ?? '—'}
+                </a></td>
                 <td className="p-3 text-tenue">{p.rol}</td>
                 <td className="p-3">
                   {p.activo ? (

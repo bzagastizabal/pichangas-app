@@ -3,9 +3,11 @@
 // estado y el enlace público de inscripción.
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { baseUrl } from '@/lib/url';
 import type { EstadoEvento, EventoConSede } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { BotonEliminar } from '@/app/admin/BotonEliminar';
+import { CompartirEnlace } from '@/app/admin/CompartirEnlace';
 import { cambiarEstadoEvento, eliminarEvento } from './actions';
 
 const soles = new Intl.NumberFormat('es-PE', {
@@ -34,6 +36,7 @@ export default async function EventosPage({
     .select('*, sedes(nombre), arbitros(nombre)')
     .order('fecha_hora_evento', { ascending: false });
   const eventos = (data as EventoConSede[]) ?? [];
+  const base = await baseUrl();
 
   return (
     <div className="space-y-6">
@@ -87,15 +90,15 @@ export default async function EventosPage({
                 <span>Límite pago: {formatearFechaLima(ev.fecha_hora_limite_pago)}</span>
               </div>
 
-              <p className="text-xs text-tenue">
-                Enlace de inscripción:{' '}
-                <Link
-                  href={`/inscribir/${ev.slug_inscripcion}`}
-                  className="text-orange-600 hover:underline"
-                >
-                  /inscribir/{ev.slug_inscripcion}
-                </Link>
-              </p>
+              <CompartirEnlace
+                url={`${base}/inscribir/${ev.slug_inscripcion}`}
+                etiqueta="Inscripción"
+                waMensaje={
+                  `🏀 Pichanga en ${ev.sedes?.nombre ?? ''} el ` +
+                  `${formatearFechaLima(ev.fecha_hora_evento)}. ` +
+                  `Inscríbete y reserva tu cupo aquí: ${base}/inscribir/${ev.slug_inscripcion}`
+                }
+              />
 
               <div className="flex flex-wrap items-center gap-4 border-t border-borde pt-3">
                 <Link

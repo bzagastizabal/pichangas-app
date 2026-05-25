@@ -2,6 +2,7 @@
 
 import { refresh } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { verificarTokenPago } from '@/lib/token-pago';
 import type { EstadoForm } from '@/lib/types';
 
 const MIMES_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
@@ -25,11 +26,14 @@ export async function subirVoucherPorToken(
   if (!MIMES_OK.includes(archivo.type)) return { error: 'Imagen o PDF.' };
   if (archivo.size > MAX_BYTES) return { error: 'Máximo 5 MB.' };
 
+  const iid = verificarTokenPago(token);
+  if (!iid) return { error: 'Link inválido.' };
+
   const admin = createAdminClient();
   const { data: insc } = await admin
     .from('inscripciones')
     .select('id, usuario_id, pagos(estado)')
-    .eq('token_pago', token)
+    .eq('id', iid)
     .maybeSingle();
   if (!insc) return { error: 'Link inválido o vencido.' };
 
