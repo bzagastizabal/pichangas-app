@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { EstadoInscripcion, Evento, Inscripcion, Pago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
+import { Pista } from '@/components/Pista';
 import { BotonInscribirse } from './BotonInscribirse';
 import { FormComprobante } from './FormComprobante';
 
@@ -149,6 +150,7 @@ export default async function InscribirPage({
           Cupos: <span className="text-texto font-medium">{disponibles}</span> disponibles
           de {evento.cupos_totales}
           {disponibles === 0 && <span className="text-amber-400"> · lleno (lista de espera)</span>}
+          <Pista texto="Se cuentan los cupos reservados y pagados. Si está lleno, quedas en lista de espera y entras si se libera uno." />
         </p>
       </div>
 

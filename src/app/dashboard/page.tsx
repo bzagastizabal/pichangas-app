@@ -10,6 +10,7 @@ import type { Notificacion } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { marcarNotificacionesLeidas } from './actions';
 import { cerrarSesion } from '@/lib/auth-actions';
+import { Pista } from '@/components/Pista';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
@@ -108,7 +109,10 @@ export default async function DashboardPage() {
       </div>
 
       <section className="pt-4 border-t border-borde">
-        <h2 className="font-semibold mb-2">Próximas pichangas</h2>
+        <h2 className="font-semibold mb-2">
+          Próximas pichangas
+          <Pista texto="Solo ves las pichangas abiertas, por jugarse y de tus categorías (o sin categoría). Toca Inscribirme para reservar tu cupo." />
+        </h2>
         {eventos.length === 0 ? (
           <p className="text-sm text-tenue">No hay pichangas abiertas ahora.</p>
         ) : (

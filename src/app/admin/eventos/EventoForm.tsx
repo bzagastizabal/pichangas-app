@@ -15,6 +15,7 @@ import {
   type Evento,
 } from '@/lib/types';
 import { isoADatetimeLocalLima } from '@/lib/fechas';
+import { Pista } from '@/components/Pista';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 const label = 'block text-sm font-medium text-texto mb-1';
@@ -238,6 +239,7 @@ export function EventoForm({
         <div>
           <label className={label} htmlFor="minimo_requerido">
             Mínimo para confirmar
+            <Pista texto="Mínimo de jugadores para que la pichanga se realice. Si no se llega, se cancela." />
           </label>
           <input
             id="minimo_requerido"
@@ -285,6 +287,7 @@ export function EventoForm({
         <div>
           <label className={label} htmlFor="porcentaje_ganancia">
             % de ganancia
+            <Pista texto="Margen que se suma a (sede + arbitraje) antes de dividir entre los cupos para el costo por jugador." />
           </label>
           <input
             id="porcentaje_ganancia"
