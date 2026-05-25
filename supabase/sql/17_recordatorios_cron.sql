@@ -1,9 +1,9 @@
 -- Fase 6 — Recordatorios por hora con pg_cron + pg_net (gratis, sin Vercel Pro).
 -- pg_cron llama cada hora al endpoint /api/recordatorios?horas=3 de tu app.
 --
--- ANTES DE CORRER, reemplaza:
---   TU_DOMINIO     -> tu dominio de producción (ej. https://pichangas.com)
---   TU_CRON_SECRET -> el mismo valor de la env var CRON_SECRET en Vercel
+-- ANTES DE CORRER, reemplaza TU_CRON_SECRET por el mismo valor de la env var
+-- CRON_SECRET configurada en Vercel. (No lo dejes escrito en este archivo si el
+-- repo es público: pégalo solo al ejecutar en el editor SQL de Supabase.)
 --
 -- Requisitos: pg_cron ya está activo (job 07). pg_net se habilita aquí.
 
@@ -18,7 +18,7 @@ select cron.schedule(
   '0 * * * *',
   $$
   select net.http_get(
-    url := 'TU_DOMINIO/api/recordatorios?horas=3',
+    url := 'https://pichangas-app.vercel.app/api/recordatorios?horas=3',
     headers := jsonb_build_object('Authorization', 'Bearer TU_CRON_SECRET')
   );
   $$
