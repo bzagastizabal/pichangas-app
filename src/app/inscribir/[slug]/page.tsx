@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { EstadoInscripcion, Evento, Inscripcion, Pago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
+import { linkGoogleCalendar } from '@/lib/calendario';
 import { Pista } from '@/components/Pista';
 import { BotonInscribirse } from './BotonInscribirse';
 import { FormComprobante } from './FormComprobante';
@@ -176,19 +177,39 @@ function EstadoInscripcionVista({
   evento: EventoPublico;
   pago: Pago | null;
 }) {
+  const cal = linkGoogleCalendar({
+    titulo: `Pichanga · ${evento.sedes?.nombre ?? ''}`,
+    inicioISO: evento.fecha_hora_evento,
+    duracionHoras: evento.duracion_horas,
+    ubicacion: evento.sedes?.direccion ?? evento.sedes?.nombre ?? '',
+  });
+  const botonCalendario = (
+    <a
+      href={cal}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block text-center text-sm text-orange-500 hover:underline"
+    >
+      📅 Agregar a Google Calendar
+    </a>
+  );
+
   if (inscripcion) {
     if (inscripcion.estado === 'confirmado') {
       return (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-center">
-          <Image
-            src="/cmt_insignia.png"
-            alt="CMT Basquetball Club"
-            width={1500}
-            height={1500}
-            className="h-28 w-auto mx-auto mb-2"
-          />
-          <p className="font-medium text-blue-800">🎉 Inscripción confirmada.</p>
-          <p className="text-blue-700">Tu pago fue aprobado. ¡Nos vemos en la cancha!</p>
+        <div className="space-y-3">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-center">
+            <Image
+              src="/cmt_insignia.png"
+              alt="CMT Basquetball Club"
+              width={1500}
+              height={1500}
+              className="h-28 w-auto mx-auto mb-2"
+            />
+            <p className="font-medium text-blue-800">🎉 Inscripción confirmada.</p>
+            <p className="text-blue-700">Tu pago fue aprobado. ¡Nos vemos en la cancha!</p>
+          </div>
+          {botonCalendario}
         </div>
       );
     }
@@ -267,6 +288,7 @@ function EstadoInscripcionVista({
             inscripcionId={inscripcion.id}
             montoSugerido={evento.costo_por_participante}
           />
+          {botonCalendario}
         </div>
       );
     }

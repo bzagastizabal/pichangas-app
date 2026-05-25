@@ -3,9 +3,15 @@
 // Protegido con CRON_SECRET (Vercel lo manda como Authorization: Bearer ...).
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enviarEmail, correoHtml } from '@/lib/email';
+import { linkGoogleCalendar } from '@/lib/calendario';
 import { formatearFechaLima } from '@/lib/fechas';
 
-type EvFila = { id: string; fecha_hora_evento: string; sedes: { nombre: string } | null };
+type EvFila = {
+  id: string;
+  fecha_hora_evento: string;
+  duracion_horas: number;
+  sedes: { nombre: string; direccion: string | null } | null;
+};
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -19,7 +25,7 @@ export async function GET(request: Request) {
 
   const { data: evData } = await admin
     .from('eventos')
-    .select('id, fecha_hora_evento, sedes(nombre)')
+    .select('id, fecha_hora_evento, duracion_horas, sedes(nombre, direccion)')
     .eq('estado', 'abierta')
     .eq('recordatorio_enviado', false)
     .gte('fecha_hora_evento', ahora.toISOString())
@@ -34,9 +40,15 @@ export async function GET(request: Request) {
       .eq('evento_id', ev.id)
       .in('estado', ['pendiente', 'confirmado']);
 
+    const sede = ev.sedes?.nombre ?? 'la cancha';
+    const cal = linkGoogleCalendar({
+      titulo: `Pichanga · ${sede}`,
+      inicioISO: ev.fecha_hora_evento,
+      duracionHoras: ev.duracion_horas,
+      ubicacion: ev.sedes?.direccion ?? sede,
+    });
     for (const ins of (inscs as { usuario_id: string; estado: string }[]) ?? []) {
       const { data: u } = await admin.auth.admin.getUserById(ins.usuario_id);
-      const sede = ev.sedes?.nombre ?? 'la cancha';
       const ok = await enviarEmail({
         to: u?.user?.email,
         subject: 'Recordatorio: tu pichanga 🏀',
@@ -45,6 +57,7 @@ export async function GET(request: Request) {
           ins.estado === 'pendiente'
             ? 'Aún tienes el <strong>pago pendiente</strong>: no pierdas tu cupo.'
             : 'Tu cupo está confirmado. ¡Nos vemos! 🏀',
+          `<a href="${cal}" style="color:#ea580c">📅 Agregar a Google Calendar</a>`,
         ]),
       });
       if (ok) enviados++;

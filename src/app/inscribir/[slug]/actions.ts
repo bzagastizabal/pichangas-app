@@ -9,13 +9,15 @@ import { getSesion } from '@/lib/auth';
 import { baseUrl } from '@/lib/url';
 import { firmarTokenPago } from '@/lib/token-pago';
 import { enviarEmail, correoHtml } from '@/lib/email';
+import { linkGoogleCalendar } from '@/lib/calendario';
 import { formatearFechaLima } from '@/lib/fechas';
 import type { EstadoForm } from '@/lib/types';
 
 type EvCorreo = {
   costo_por_participante: number;
   fecha_hora_evento: string;
-  sedes: { nombre: string } | null;
+  duracion_horas: number;
+  sedes: { nombre: string; direccion: string | null } | null;
 };
 
 export async function inscribirse(
@@ -40,13 +42,19 @@ export async function inscribirse(
     const insc = data as { id: string; estado: string } | null;
     const { data: evData } = await supabase
       .from('eventos')
-      .select('costo_por_participante, fecha_hora_evento, sedes(nombre)')
+      .select('costo_por_participante, fecha_hora_evento, duracion_horas, sedes(nombre, direccion)')
       .eq('id', eventoId)
       .maybeSingle();
     const ev = evData as unknown as EvCorreo | null;
     if (insc && ev && user.email) {
       const link = `${await baseUrl()}/pagar/${firmarTokenPago(insc.id)}`;
       const sede = ev.sedes?.nombre ?? 'la cancha';
+      const cal = linkGoogleCalendar({
+        titulo: `Pichanga · ${sede}`,
+        inicioISO: ev.fecha_hora_evento,
+        duracionHoras: ev.duracion_horas,
+        ubicacion: ev.sedes?.direccion ?? sede,
+      });
       const estadoTxt =
         insc.estado === 'lista_espera'
           ? 'Quedaste en <strong>lista de espera</strong>; paga rápido para asegurar tu cupo.'
@@ -60,6 +68,7 @@ export async function inscribirse(
             `Pichanga en <strong>${sede}</strong> el ${formatearFechaLima(ev.fecha_hora_evento)}.`,
             estadoTxt,
             `Costo por jugador: S/ ${ev.costo_por_participante}.`,
+            `<a href="${cal}" style="color:#ea580c">📅 Agregar a Google Calendar</a>`,
           ],
           { texto: 'Subir mi comprobante', url: link },
         ),
