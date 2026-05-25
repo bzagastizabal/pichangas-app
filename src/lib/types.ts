@@ -57,6 +57,17 @@ export type Evento = {
   created_at: string;
 };
 
+export type Publicacion = {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  evento_id: string | null;
+  imagenes: string[];
+  autor_id: string | null;
+  publicado: boolean;
+  created_at: string;
+};
+
 export type Staff = {
   id: string;
   nombre: string;

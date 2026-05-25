@@ -93,6 +93,12 @@ export default async function DashboardPage() {
           </Link>
         )}
         <Link
+          href="/publicaciones"
+          className="text-sm text-tenue hover:text-orange-600 border border-borde rounded px-4 py-2"
+        >
+          Novedades
+        </Link>
+        <Link
           href="/cuenta/clave"
           className="text-sm text-tenue hover:text-orange-600 border border-borde rounded px-4 py-2"
         >
