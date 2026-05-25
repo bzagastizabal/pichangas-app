@@ -39,6 +39,7 @@ export function EventoForm({
   arbitrosSeleccionados,
   categorias,
   inicial,
+  esCopia = false,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>;
   sedes: Opcion[];
@@ -46,6 +47,9 @@ export function EventoForm({
   arbitrosSeleccionados: string[];
   categorias: { id: string; nombre: string }[];
   inicial?: Evento;
+  // En modo copia tomamos toda la config de `inicial` pero creamos un evento
+  // nuevo: sin id (no edita) y con fechas en blanco (se eligen de nuevo).
+  esCopia?: boolean;
 }) {
   const [estado, formAction, pending] = useActionState(action, {});
 
@@ -96,9 +100,14 @@ export function EventoForm({
     Number(cupos),
   );
 
+  // Estimación asumiendo que el evento se llena (todos los cupos).
+  const egresosTotales = round2(Number(costoSede) + Number(costoArbitraje));
+  const recaudacionTotal = round2(costoPorParticipante * Number(cupos));
+  const gananciaTotal = round2(recaudacionTotal - egresosTotales);
+
   return (
     <form action={formAction} className="space-y-4 max-w-2xl">
-      {inicial && <input type="hidden" name="id" value={inicial.id} />}
+      {inicial && !esCopia && <input type="hidden" name="id" value={inicial.id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -206,7 +215,9 @@ export function EventoForm({
             type="datetime-local"
             className={input}
             defaultValue={
-              inicial ? isoADatetimeLocalLima(inicial.fecha_hora_evento) : ''
+              inicial && !esCopia
+                ? isoADatetimeLocalLima(inicial.fecha_hora_evento)
+                : ''
             }
             required
           />
@@ -222,7 +233,9 @@ export function EventoForm({
             type="datetime-local"
             className={input}
             defaultValue={
-              inicial ? isoADatetimeLocalLima(inicial.fecha_hora_limite_pago) : ''
+              inicial && !esCopia
+                ? isoADatetimeLocalLima(inicial.fecha_hora_limite_pago)
+                : ''
             }
             required
           />
@@ -338,14 +351,35 @@ export function EventoForm({
         especial.
       </p>
 
-      <div className="rounded-lg bg-orange-50 border border-orange-200 p-4">
-        <p className="text-sm text-tenue">Costo por participante (estimado)</p>
-        <p className="text-2xl font-bold text-orange-700">
-          {soles.format(costoPorParticipante)}
-        </p>
-        <p className="text-xs text-tenue">
-          (costo sede + arbitraje) × (1 + % ganancia) ÷ cupos totales
-        </p>
+      <div className="rounded-lg bg-orange-50 border border-orange-200 p-4 space-y-3">
+        <div>
+          <p className="text-sm text-tenue">Costo por participante (redondeado)</p>
+          <p className="text-2xl font-bold text-orange-700">
+            {soles.format(costoPorParticipante)}
+          </p>
+          <p className="text-xs text-tenue">
+            (costo sede + arbitraje) × (1 + % ganancia) ÷ cupos, redondeado hacia
+            arriba a soles enteros.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 border-t border-orange-200 pt-3 text-center">
+          <div>
+            <p className="text-xs text-tenue">Egresos</p>
+            <p className="font-semibold text-texto">{soles.format(egresosTotales)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-tenue">Recauda (si se llena)</p>
+            <p className="font-semibold text-texto">
+              {soles.format(recaudacionTotal)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-tenue">Ganancia estimada</p>
+            <p className="font-semibold text-green-700">
+              {soles.format(gananciaTotal)}
+            </p>
+          </div>
+        </div>
       </div>
 
       {estado.error && <p className="text-sm text-red-600">{estado.error}</p>}

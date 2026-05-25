@@ -172,6 +172,8 @@ export type EstadoForm = { error?: string };
 
 // Cálculo de costo por participante (misma fórmula que documenta CLAUDE.md).
 // costo = (costo_sede + costo_arbitraje) * (1 + %ganancia/100) / cupos_totales
+// Se redondea HACIA ARRIBA a soles enteros: el redondeo extra se suma a la
+// ganancia (cobrar montos cerrados facilita el pago por Yape/Plin).
 export function calcularCostoPorParticipante(
   costoSede: number,
   costoArbitraje: number,
@@ -181,5 +183,5 @@ export function calcularCostoPorParticipante(
   if (!cuposTotales || cuposTotales <= 0) return 0;
   const base = costoSede + costoArbitraje;
   const conGanancia = base * (1 + porcentajeGanancia / 100);
-  return Math.round((conGanancia / cuposTotales) * 100) / 100;
+  return Math.ceil(conGanancia / cuposTotales);
 }
