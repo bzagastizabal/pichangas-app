@@ -1,9 +1,10 @@
 // src/app/admin/eventos/[id]/editar/page.tsx
 // Editar evento. Aquí ofrecemos TODAS las sedes/árbitros (no solo activos) para
 // que la selección actual del evento siga apareciendo aunque se haya desactivado.
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Evento } from '@/lib/types';
+import { eventoYaTermino } from '@/lib/fechas';
 import { EventoForm } from '../../EventoForm';
 import { actualizarEvento } from '../../actions';
 
@@ -34,6 +35,17 @@ export default async function EditarEventoPage({
 
   if (!evento) notFound();
 
+  const ev = evento as Evento;
+  // Un evento ya realizado es histórico: no se edita. Ofrecemos copiarlo.
+  if (eventoYaTermino(ev.fecha_hora_evento, ev.duracion_horas)) {
+    redirect(
+      '/admin/eventos?error=' +
+        encodeURIComponent(
+          'Ese evento ya se realizó; no se puede editar. Usa "Copiar" para crear uno nuevo.',
+        ),
+    );
+  }
+
   const arbitrosSeleccionados = (relArbitros ?? []).map((r) => r.arbitro_id as string);
 
   return (
@@ -45,7 +57,7 @@ export default async function EditarEventoPage({
         arbitros={arbitros ?? []}
         arbitrosSeleccionados={arbitrosSeleccionados}
         categorias={categorias ?? []}
-        inicial={evento as Evento}
+        inicial={ev}
       />
     </div>
   );

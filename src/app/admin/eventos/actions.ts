@@ -8,7 +8,7 @@ import { refresh } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAdmin } from '@/lib/auth';
 import { calcularCostoPorParticipante, type EstadoEvento, type EstadoForm } from '@/lib/types';
-import { datetimeLocalALimaISO } from '@/lib/fechas';
+import { datetimeLocalALimaISO, eventoYaTermino } from '@/lib/fechas';
 
 type CamposValidados = {
   tipo: string;
@@ -184,6 +184,18 @@ export async function actualizarEvento(
   if (!r.ok) return { error: r.error };
 
   const supabase = await createClient();
+  // Un evento ya realizado no se edita (se conserva como histórico). Para repetirlo
+  // usa "Copiar".
+  const { data: actual } = await supabase
+    .from('eventos')
+    .select('fecha_hora_evento, duracion_horas')
+    .eq('id', id)
+    .single();
+  if (actual && eventoYaTermino(actual.fecha_hora_evento, actual.duracion_horas)) {
+    return {
+      error: 'Este evento ya se realizó; no se puede editar. Usa "Copiar" para crear uno nuevo.',
+    };
+  }
   // No tocamos slug_inscripcion ni admin_id en la edición.
   const { error } = await supabase.from('eventos').update(r.campos).eq('id', id);
   if (error) return { error: 'No se pudo guardar: ' + error.message };

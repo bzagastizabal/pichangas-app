@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { baseUrl } from '@/lib/url';
 import type { EstadoEvento, EventoConSede } from '@/lib/types';
-import { formatearFechaLima } from '@/lib/fechas';
+import { formatearFechaLima, eventoYaTermino } from '@/lib/fechas';
 import { BotonEliminar } from '@/app/admin/BotonEliminar';
 import { CompartirEnlace } from '@/app/admin/CompartirEnlace';
 import { cambiarEstadoEvento, eliminarEvento } from './actions';
@@ -112,11 +112,21 @@ export default async function EventosPage({
               />
 
               <div className="flex flex-wrap items-center gap-4 border-t border-borde pt-3">
+                {eventoYaTermino(ev.fecha_hora_evento, ev.duracion_horas) ? (
+                  <span className="text-sm text-tenue">Realizado (solo lectura)</span>
+                ) : (
+                  <Link
+                    href={`/admin/eventos/${ev.id}/editar`}
+                    className="text-sm text-orange-600 hover:underline"
+                  >
+                    Editar
+                  </Link>
+                )}
                 <Link
-                  href={`/admin/eventos/${ev.id}/editar`}
+                  href={`/admin/eventos/nueva?desde=${ev.id}`}
                   className="text-sm text-orange-600 hover:underline"
                 >
-                  Editar
+                  Copiar
                 </Link>
                 <Link
                   href={`/admin/eventos/${ev.id}/participantes`}
