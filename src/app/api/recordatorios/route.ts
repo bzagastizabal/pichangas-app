@@ -1,6 +1,6 @@
-// Cron diario (Vercel): envía recordatorios por correo de los eventos que se
-// juegan en las próximas ~24 h y marca el evento para no repetir.
-// Protegido con CRON_SECRET (Vercel lo manda como Authorization: Bearer ...).
+// Endpoint de recordatorios. Lo llama pg_cron (vía pg_net) cada hora con
+// ?horas=3 para avisar a los inscritos de eventos próximos (ventana ajustable).
+// Marca el evento para no repetir. Protegido con CRON_SECRET (header Authorization).
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enviarEmail, correoHtml } from '@/lib/email';
 import { linkGoogleCalendar } from '@/lib/calendario';
@@ -21,7 +21,8 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const ahora = new Date();
-  const limite = new Date(ahora.getTime() + 24 * 3600 * 1000);
+  const horas = Number(new URL(request.url).searchParams.get('horas')) || 24;
+  const limite = new Date(ahora.getTime() + horas * 3600 * 1000);
 
   const { data: evData } = await admin
     .from('eventos')
