@@ -11,8 +11,10 @@ import { useActionState, useState } from 'react';
 import Link from 'next/link';
 import {
   calcularCostoPorParticipante,
+  costoArbitroTramo,
   type EstadoForm,
   type Evento,
+  type TarifasArbitro,
 } from '@/lib/types';
 import { isoADatetimeLocalLima } from '@/lib/fechas';
 import { Pista } from '@/components/Pista';
@@ -21,6 +23,7 @@ const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 const label = 'block text-sm font-medium text-texto mb-1';
 
 type Opcion = { id: string; nombre: string; precio_por_hora: number };
+type OpcionArbitro = { id: string; nombre: string } & TarifasArbitro;
 
 const soles = new Intl.NumberFormat('es-PE', {
   style: 'currency',
@@ -33,19 +36,21 @@ export function EventoForm({
   action,
   sedes,
   arbitros,
+  arbitrosSeleccionados,
   categorias,
   inicial,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>;
   sedes: Opcion[];
-  arbitros: Opcion[];
+  arbitros: OpcionArbitro[];
+  arbitrosSeleccionados: string[];
   categorias: { id: string; nombre: string }[];
   inicial?: Evento;
 }) {
   const [estado, formAction, pending] = useActionState(action, {});
 
   const [sedeId, setSedeId] = useState(inicial?.sede_id ?? '');
-  const [arbitroId, setArbitroId] = useState(inicial?.arbitro_id ?? '');
+  const [arbitroIds, setArbitroIds] = useState<string[]>(arbitrosSeleccionados);
   const [duracion, setDuracion] = useState(inicial?.duracion_horas ?? 2);
   const [costoSede, setCostoSede] = useState(inicial?.costo_sede ?? 0);
   const [costoArbitraje, setCostoArbitraje] = useState(inicial?.costo_arbitraje ?? 0);
@@ -55,21 +60,33 @@ export function EventoForm({
   const precioDe = (id: string, lista: Opcion[]) =>
     lista.find((x) => x.id === id)?.precio_por_hora ?? 0;
 
+  // Suma del costo de los árbitros seleccionados según la duración (por tramos).
+  function sumaArbitros(ids: string[], d: number) {
+    return round2(
+      ids.reduce((acc, id) => {
+        const a = arbitros.find((x) => x.id === id);
+        return acc + (a ? costoArbitroTramo(a, d) : 0);
+      }, 0),
+    );
+  }
+
   function alCambiarSede(id: string) {
     setSedeId(id);
     setCostoSede(round2(precioDe(id, sedes) * duracion));
   }
 
-  function alCambiarArbitro(id: string) {
-    setArbitroId(id);
-    setCostoArbitraje(id ? round2(precioDe(id, arbitros) * duracion) : 0);
+  function alternarArbitro(id: string) {
+    const nuevos = arbitroIds.includes(id)
+      ? arbitroIds.filter((x) => x !== id)
+      : [...arbitroIds, id];
+    setArbitroIds(nuevos);
+    setCostoArbitraje(sumaArbitros(nuevos, duracion));
   }
 
   function alCambiarDuracion(d: number) {
     setDuracion(d);
-    // Re-importa los costos desde las tarifas con la nueva duración.
     setCostoSede(round2(precioDe(sedeId, sedes) * d));
-    setCostoArbitraje(arbitroId ? round2(precioDe(arbitroId, arbitros) * d) : 0);
+    setCostoArbitraje(sumaArbitros(arbitroIds, d));
   }
 
   const costoPorParticipante = calcularCostoPorParticipante(
@@ -148,23 +165,35 @@ export function EventoForm({
         </div>
 
         <div>
-          <label className={label} htmlFor="arbitro_id">
-            Árbitro (opcional)
+          <label className={label}>
+            Árbitros (uno o varios)
+            <Pista texto="Puedes asignar más de un árbitro para cotizar el gasto total. El costo de cada uno depende de la duración (tarifa por tramo)." />
           </label>
-          <select
-            id="arbitro_id"
-            name="arbitro_id"
-            className={input}
-            value={arbitroId}
-            onChange={(e) => alCambiarArbitro(e.target.value)}
-          >
-            <option value="">Sin árbitro</option>
+          <div className="border border-borde rounded bg-campo p-2 space-y-1 max-h-44 overflow-y-auto">
+            {arbitros.length === 0 && (
+              <p className="text-xs text-tenue">No hay árbitros activos.</p>
+            )}
             {arbitros.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nombre} — {soles.format(a.precio_por_hora)}/h
-              </option>
+              <label
+                key={a.id}
+                className="flex items-center justify-between gap-2 text-sm text-texto"
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="arbitros"
+                    value={a.id}
+                    checked={arbitroIds.includes(a.id)}
+                    onChange={() => alternarArbitro(a.id)}
+                  />
+                  {a.nombre}
+                </span>
+                <span className="text-tenue">
+                  {soles.format(costoArbitroTramo(a, duracion))}
+                </span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
@@ -303,9 +332,10 @@ export function EventoForm({
       </div>
 
       <p className="text-xs text-tenue">
-        Los costos se importan como <strong>precio/hora × duración</strong> al
-        elegir sede/árbitro o cambiar la duración. Puedes ajustarlos a mano si
-        hay un costo especial.
+        El costo de sede se importa como <strong>precio/hora × duración</strong>.
+        El de arbitraje es la <strong>suma de los árbitros elegidos</strong> según
+        su tarifa por tramo de horas. Puedes ajustarlos a mano si hay un costo
+        especial.
       </p>
 
       <div className="rounded-lg bg-orange-50 border border-orange-200 p-4">

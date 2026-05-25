@@ -14,7 +14,7 @@ export default async function NuevoEventoPage() {
       .order('nombre'),
     supabase
       .from('arbitros')
-      .select('id, nombre, precio_por_hora')
+      .select('id, nombre, precio_por_hora, tarifa_1h, tarifa_2h, tarifa_3h, tarifa_mas')
       .eq('activo', true)
       .order('nombre'),
     supabase.from('categorias').select('id, nombre').eq('activo', true).order('nombre'),
@@ -27,6 +27,7 @@ export default async function NuevoEventoPage() {
         action={crearEvento}
         sedes={sedes ?? []}
         arbitros={arbitros ?? []}
+        arbitrosSeleccionados={[]}
         categorias={categorias ?? []}
       />
     </div>

@@ -32,7 +32,9 @@ function num(formData: FormData, name: string): number {
 
 function validar(
   formData: FormData,
-): { ok: true; campos: CamposValidados } | { ok: false; error: string } {
+):
+  | { ok: true; campos: CamposValidados; arbitros: string[] }
+  | { ok: false; error: string } {
   const tipoRaw = (formData.get('tipo') as string | null)?.trim() ?? 'pichanga';
   const tipo = ['pichanga', 'amistoso', 'torneo'].includes(tipoRaw) ? tipoRaw : 'pichanga';
   const categoriaRaw = (formData.get('categoria_id') as string | null)?.trim() ?? '';
@@ -41,8 +43,13 @@ function validar(
   const sede_id = (formData.get('sede_id') as string | null)?.trim() ?? '';
   if (!sede_id) return { ok: false, error: 'Debes elegir una sede.' };
 
-  const arbitroRaw = (formData.get('arbitro_id') as string | null)?.trim() ?? '';
-  const arbitro_id = arbitroRaw === '' ? null : arbitroRaw;
+  // Varios árbitros por evento (checkboxes name="arbitros"). El primero se
+  // guarda también en eventos.arbitro_id por compatibilidad con listados/joins.
+  const arbitros = formData
+    .getAll('arbitros')
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+  const arbitro_id = arbitros[0] ?? null;
 
   const feLocal = (formData.get('fecha_hora_evento') as string | null) ?? '';
   const flLocal = (formData.get('fecha_hora_limite_pago') as string | null) ?? '';
@@ -102,6 +109,7 @@ function validar(
 
   return {
     ok: true,
+    arbitros,
     campos: {
       tipo,
       categoria_id,
@@ -120,6 +128,20 @@ function validar(
   };
 }
 
+// Reescribe la relación N-a-N evento <-> árbitros (borra y vuelve a insertar).
+async function sincronizarArbitros(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  eventoId: string,
+  arbitros: string[],
+): Promise<void> {
+  await supabase.from('evento_arbitros').delete().eq('evento_id', eventoId);
+  if (arbitros.length > 0) {
+    await supabase
+      .from('evento_arbitros')
+      .insert(arbitros.map((arbitro_id) => ({ evento_id: eventoId, arbitro_id })));
+  }
+}
+
 function generarSlug(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
@@ -133,12 +155,20 @@ export async function crearEvento(
   if (!r.ok) return { error: r.error };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('eventos').insert({
-    ...r.campos,
-    admin_id: perfil.id,
-    slug_inscripcion: generarSlug(),
-  });
-  if (error) return { error: 'No se pudo crear el evento: ' + error.message };
+  const { data, error } = await supabase
+    .from('eventos')
+    .insert({
+      ...r.campos,
+      admin_id: perfil.id,
+      slug_inscripcion: generarSlug(),
+    })
+    .select('id')
+    .single();
+  if (error || !data) {
+    return { error: 'No se pudo crear el evento: ' + (error?.message ?? '') };
+  }
+
+  await sincronizarArbitros(supabase, data.id, r.arbitros);
 
   redirect('/admin/eventos');
 }
@@ -157,6 +187,8 @@ export async function actualizarEvento(
   // No tocamos slug_inscripcion ni admin_id en la edición.
   const { error } = await supabase.from('eventos').update(r.campos).eq('id', id);
   if (error) return { error: 'No se pudo guardar: ' + error.message };
+
+  await sincronizarArbitros(supabase, id, r.arbitros);
 
   redirect('/admin/eventos');
 }

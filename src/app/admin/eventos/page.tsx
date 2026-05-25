@@ -33,10 +33,19 @@ export default async function EventosPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from('eventos')
-    .select('*, sedes(nombre), arbitros(nombre)')
+    .select('*, sedes(nombre), evento_arbitros(arbitros(nombre))')
     .order('fecha_hora_evento', { ascending: false });
-  const eventos = (data as EventoConSede[]) ?? [];
+  const eventos =
+    (data as unknown as (EventoConSede & {
+      evento_arbitros: { arbitros: { nombre: string } | null }[] | null;
+    })[]) ?? [];
   const base = await baseUrl();
+
+  const nombresArbitros = (ev: (typeof eventos)[number]) =>
+    (ev.evento_arbitros ?? [])
+      .map((x) => x.arbitros?.nombre)
+      .filter(Boolean)
+      .join(', ');
 
   return (
     <div className="space-y-6">
@@ -72,7 +81,9 @@ export default async function EventosPage({
                   <p className="font-semibold">{ev.sedes?.nombre ?? 'Sede ?'}</p>
                   <p className="text-sm text-tenue">
                     {formatearFechaLima(ev.fecha_hora_evento)}
-                    {ev.arbitros?.nombre ? ` · árbitro: ${ev.arbitros.nombre}` : ''}
+                    {nombresArbitros(ev)
+                      ? ` · árbitros: ${nombresArbitros(ev)}`
+                      : ''}
                   </p>
                 </div>
                 <span

@@ -15,15 +15,26 @@ export default async function EditarEventoPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: evento }, { data: sedes }, { data: arbitros }, { data: categorias }] =
-    await Promise.all([
-      supabase.from('eventos').select('*').eq('id', id).single(),
-      supabase.from('sedes').select('id, nombre, precio_por_hora').order('nombre'),
-      supabase.from('arbitros').select('id, nombre, precio_por_hora').order('nombre'),
-      supabase.from('categorias').select('id, nombre').order('nombre'),
-    ]);
+  const [
+    { data: evento },
+    { data: sedes },
+    { data: arbitros },
+    { data: categorias },
+    { data: relArbitros },
+  ] = await Promise.all([
+    supabase.from('eventos').select('*').eq('id', id).single(),
+    supabase.from('sedes').select('id, nombre, precio_por_hora').order('nombre'),
+    supabase
+      .from('arbitros')
+      .select('id, nombre, precio_por_hora, tarifa_1h, tarifa_2h, tarifa_3h, tarifa_mas')
+      .order('nombre'),
+    supabase.from('categorias').select('id, nombre').order('nombre'),
+    supabase.from('evento_arbitros').select('arbitro_id').eq('evento_id', id),
+  ]);
 
   if (!evento) notFound();
+
+  const arbitrosSeleccionados = (relArbitros ?? []).map((r) => r.arbitro_id as string);
 
   return (
     <div className="space-y-6">
@@ -32,6 +43,7 @@ export default async function EditarEventoPage({
         action={actualizarEvento}
         sedes={sedes ?? []}
         arbitros={arbitros ?? []}
+        arbitrosSeleccionados={arbitrosSeleccionados}
         categorias={categorias ?? []}
         inicial={evento as Evento}
       />
