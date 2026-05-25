@@ -19,11 +19,33 @@ export type Arbitro = {
   telefono: string | null;
   tarifa_partido: number;
   precio_por_hora: number;
+  tarifa_1h: number;
+  tarifa_2h: number;
+  tarifa_3h: number;
+  tarifa_mas: number;
   calificacion: number | null;
   notas: string | null;
   activo: boolean;
   created_at: string;
 };
+
+// Tarifas por tramo del árbitro (subset usado para calcular costos).
+export type TarifasArbitro = {
+  tarifa_1h: number;
+  tarifa_2h: number;
+  tarifa_3h: number;
+  tarifa_mas: number;
+  precio_por_hora: number;
+};
+
+// Costo del árbitro según la duración: tramo ≤1h / ≤2h / ≤3h / >3h.
+// Si el tramo está en 0, cae al precio por hora * duración (respaldo).
+export function costoArbitroTramo(a: TarifasArbitro, duracion: number): number {
+  const tramo =
+    duracion <= 1 ? a.tarifa_1h : duracion <= 2 ? a.tarifa_2h : duracion <= 3 ? a.tarifa_3h : a.tarifa_mas;
+  if (!tramo && a.precio_por_hora) return Math.round(a.precio_por_hora * duracion * 100) / 100;
+  return tramo;
+}
 
 export type EstadoEvento = 'abierta' | 'cerrada' | 'cancelada' | 'finalizada';
 export type TipoEvento = 'pichanga' | 'amistoso' | 'torneo';

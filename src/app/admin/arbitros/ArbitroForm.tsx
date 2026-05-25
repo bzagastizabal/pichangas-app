@@ -56,8 +56,27 @@ export function ArbitroForm({
           defaultValue={inicial?.precio_por_hora ?? 0}
         />
         <p className="mt-1 text-xs text-tenue">
-          Se usa para calcular el costo de arbitraje al crear un evento.
+          Respaldo: se usa si no defines las tarifas por tramo de abajo.
         </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={label}>Tarifa hasta 1 h (S/)</label>
+          <input name="tarifa_1h" type="number" min="0" step="0.01" className={input} defaultValue={inicial?.tarifa_1h ?? 0} />
+        </div>
+        <div>
+          <label className={label}>Tarifa hasta 2 h (S/)</label>
+          <input name="tarifa_2h" type="number" min="0" step="0.01" className={input} defaultValue={inicial?.tarifa_2h ?? 0} />
+        </div>
+        <div>
+          <label className={label}>Tarifa hasta 3 h (S/)</label>
+          <input name="tarifa_3h" type="number" min="0" step="0.01" className={input} defaultValue={inicial?.tarifa_3h ?? 0} />
+        </div>
+        <div>
+          <label className={label}>Tarifa más de 3 h (S/)</label>
+          <input name="tarifa_mas" type="number" min="0" step="0.01" className={input} defaultValue={inicial?.tarifa_mas ?? 0} />
+        </div>
       </div>
 
       <div>
