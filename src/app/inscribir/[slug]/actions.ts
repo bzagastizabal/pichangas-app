@@ -6,7 +6,17 @@
 import { refresh } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSesion } from '@/lib/auth';
+import { baseUrl } from '@/lib/url';
+import { firmarTokenPago } from '@/lib/token-pago';
+import { enviarEmail, correoHtml } from '@/lib/email';
+import { formatearFechaLima } from '@/lib/fechas';
 import type { EstadoForm } from '@/lib/types';
+
+type EvCorreo = {
+  costo_por_participante: number;
+  fecha_hora_evento: string;
+  sedes: { nombre: string } | null;
+};
 
 export async function inscribirse(
   _prev: EstadoForm,
@@ -19,10 +29,44 @@ export async function inscribirse(
   if (!eventoId) return { error: 'Falta el evento.' };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc('inscribirse', { p_evento_id: eventoId });
+  const { data, error } = await supabase.rpc('inscribirse', { p_evento_id: eventoId });
   if (error) {
     // La RPC lanza mensajes en español; los mostramos tal cual.
     return { error: error.message };
+  }
+
+  // Correo de confirmación (best-effort, no bloquea).
+  try {
+    const insc = data as { id: string; estado: string } | null;
+    const { data: evData } = await supabase
+      .from('eventos')
+      .select('costo_por_participante, fecha_hora_evento, sedes(nombre)')
+      .eq('id', eventoId)
+      .maybeSingle();
+    const ev = evData as unknown as EvCorreo | null;
+    if (insc && ev && user.email) {
+      const link = `${await baseUrl()}/pagar/${firmarTokenPago(insc.id)}`;
+      const sede = ev.sedes?.nombre ?? 'la cancha';
+      const estadoTxt =
+        insc.estado === 'lista_espera'
+          ? 'Quedaste en <strong>lista de espera</strong>; paga rápido para asegurar tu cupo.'
+          : 'Reservaste tu cupo (<strong>pendiente de pago</strong>).';
+      await enviarEmail({
+        to: user.email,
+        subject: 'Inscripción a la pichanga 🏀',
+        html: correoHtml(
+          '¡Inscripción registrada!',
+          [
+            `Pichanga en <strong>${sede}</strong> el ${formatearFechaLima(ev.fecha_hora_evento)}.`,
+            estadoTxt,
+            `Costo por jugador: S/ ${ev.costo_por_participante}.`,
+          ],
+          { texto: 'Subir mi comprobante', url: link },
+        ),
+      });
+    }
+  } catch {
+    // ignorar errores de correo
   }
 
   // Re-renderiza la página para mostrar el nuevo estado de la inscripción.
