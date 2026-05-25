@@ -57,6 +57,17 @@ export type Evento = {
   created_at: string;
 };
 
+export type Staff = {
+  id: string;
+  nombre: string;
+  cargo: string | null;
+  whatsapp: string | null;
+  es_default: boolean;
+  orden: number;
+  activo: boolean;
+  created_at: string;
+};
+
 export type MetodoEgreso = 'yape' | 'plin' | 'banco' | 'efectivo';
 
 export type Egreso = {

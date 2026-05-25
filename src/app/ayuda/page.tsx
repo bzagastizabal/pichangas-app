@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { STAFF } from '@/lib/staff';
-import { linkWa } from '@/lib/wa';
+import { ContactosStaff } from '@/components/ContactosStaff';
 
 const paso = 'rounded-lg border border-borde p-4';
 
@@ -55,16 +54,9 @@ export default function AyudaPage() {
         </ul>
       </div>
 
-      <div className={`${paso} text-center`}>
-        <p className="text-sm">¿Sigues con dudas? Escríbenos:</p>
-        <a
-          href={linkWa(STAFF.whatsapp, 'Hola, necesito ayuda con las pichangas CMT 🏀')}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block rounded bg-green-600 px-4 py-2 text-sm text-white"
-        >
-          WhatsApp del staff
-        </a>
+      <div className={paso}>
+        <h2 className="font-semibold mb-2">¿Sigues con dudas? Contacta al staff</h2>
+        <ContactosStaff />
       </div>
 
       <Link href="/dashboard" className="block text-center text-sm text-tenue hover:text-orange-600">

@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { STAFF } from '@/lib/staff';
-import { linkWa } from '@/lib/wa';
+import { ContactosStaff } from '@/components/ContactosStaff';
 
 // Botón flotante de ayuda (abajo a la derecha): guía + contacto del staff.
 export function BotonAyuda() {
@@ -21,14 +20,10 @@ export function BotonAyuda() {
           >
             📖 Cómo funciona (guía)
           </Link>
-          <a
-            href={linkWa(STAFF.whatsapp, 'Hola, necesito ayuda con las pichangas CMT 🏀')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block rounded bg-green-600 px-3 py-2 text-center text-sm text-white"
-          >
-            Escribir al staff por WhatsApp
-          </a>
+          <div>
+            <p className="mb-1 text-xs text-tenue">Contacto del staff</p>
+            <ContactosStaff />
+          </div>
         </div>
       )}
       <button

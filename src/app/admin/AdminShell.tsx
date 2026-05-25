@@ -25,6 +25,7 @@ const grupos = [
       { href: '/admin/sedes', label: 'Sedes', icon: '📍' },
       { href: '/admin/arbitros', label: 'Árbitros', icon: '🧑‍⚖️' },
       { href: '/admin/categorias', label: 'Categorías', icon: '🏷️' },
+      { href: '/admin/staff', label: 'Staff', icon: '🧑‍💼' },
     ],
   },
 ];
