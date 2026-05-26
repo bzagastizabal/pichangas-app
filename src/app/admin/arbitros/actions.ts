@@ -41,11 +41,11 @@ function leerCampos(
       nombre,
       telefono: opcional(formData.get('telefono')),
       tarifa_partido: tarifa,
+      // precio_por_hora = tarifa por hora para 3 h o más; tarifa_1h/2h son fijas.
+      // (tarifa_3h/tarifa_mas quedaron obsoletas; ya no se usan.)
       precio_por_hora: Math.max(0, Number(formData.get('precio_por_hora')) || 0),
       tarifa_1h: Math.max(0, Number(formData.get('tarifa_1h')) || 0),
       tarifa_2h: Math.max(0, Number(formData.get('tarifa_2h')) || 0),
-      tarifa_3h: Math.max(0, Number(formData.get('tarifa_3h')) || 0),
-      tarifa_mas: Math.max(0, Number(formData.get('tarifa_mas')) || 0),
       calificacion,
       notas: opcional(formData.get('notas')),
       activo: formData.get('activo') === 'on',

@@ -27,7 +27,7 @@ export default async function EditarEventoPage({
     supabase.from('sedes').select('id, nombre, precio_por_hora').order('nombre'),
     supabase
       .from('arbitros')
-      .select('id, nombre, precio_por_hora, tarifa_1h, tarifa_2h, tarifa_3h, tarifa_mas')
+      .select('id, nombre, precio_por_hora, tarifa_1h, tarifa_2h')
       .order('nombre'),
     supabase.from('categorias').select('id, nombre').order('nombre'),
     supabase.from('evento_arbitros').select('arbitro_id').eq('evento_id', id),

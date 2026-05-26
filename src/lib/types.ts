@@ -29,22 +29,23 @@ export type Arbitro = {
   created_at: string;
 };
 
-// Tarifas por tramo del árbitro (subset usado para calcular costos).
+// Tarifas del árbitro (subset usado para calcular costos).
 export type TarifasArbitro = {
-  tarifa_1h: number;
-  tarifa_2h: number;
-  tarifa_3h: number;
-  tarifa_mas: number;
-  precio_por_hora: number;
+  tarifa_1h: number; // tarifa FIJA para 1 h
+  tarifa_2h: number; // tarifa FIJA para 2 h
+  precio_por_hora: number; // tarifa POR HORA para 3 h o más
 };
 
-// Costo del árbitro según la duración: tramo ≤1h / ≤2h / ≤3h / >3h.
-// Si el tramo está en 0, cae al precio por hora * duración (respaldo).
+// Costo del árbitro según la duración del evento:
+//  - 1 h y 2 h: tarifa FIJA (tarifa_1h / tarifa_2h).
+//  - 3 h o más (y tramos intermedios > 2 h): por hora = precio_por_hora × duración
+//    (p. ej. precio 40 → 3 h = 120, 4 h = 160).
+// Si la tarifa fija de 1 h/2 h está en 0, cae a precio_por_hora × duración.
 export function costoArbitroTramo(a: TarifasArbitro, duracion: number): number {
-  const tramo =
-    duracion <= 1 ? a.tarifa_1h : duracion <= 2 ? a.tarifa_2h : duracion <= 3 ? a.tarifa_3h : a.tarifa_mas;
-  if (!tramo && a.precio_por_hora) return Math.round(a.precio_por_hora * duracion * 100) / 100;
-  return tramo;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  if (duracion <= 1) return a.tarifa_1h || r2(a.precio_por_hora * duracion);
+  if (duracion <= 2) return a.tarifa_2h || r2(a.precio_por_hora * duracion);
+  return r2(a.precio_por_hora * duracion);
 }
 
 export type EstadoEvento = 'abierta' | 'cerrada' | 'cancelada' | 'finalizada';

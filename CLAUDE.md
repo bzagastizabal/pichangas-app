@@ -98,9 +98,11 @@ decide si la pichanga se realiza o se cancela.)
   con RLS de admin). Consolidado con filtro por rango de fechas (ingresos/egresos/ganancia/morosos)
   y detalle por evento /admin/finanzas/[id] con lista de inscritos y morosos.
   Ingresos = pagos aprobados; egresos = costo_sede + costo_arbitraje; moroso = pendiente sin pago.
-- **Fase 6 (EN CURSO):** Árbitros con tarifa por tramos de horas (tarifa_1h/2h/3h/mas;
-  precio_por_hora = respaldo) y VARIOS árbitros por evento (tabla puente `evento_arbitros`).
-  costo_arbitraje = suma de costoArbitroTramo() de los árbitros elegidos. SQL: 18_arbitros_tarifas.
+- **Fase 6 (EN CURSO):** Tarifa de árbitro: 1 h y 2 h tienen tarifa FIJA (tarifa_1h/tarifa_2h);
+  3 h o más se cobra POR HORA = precio_por_hora × duración (p. ej. 40 → 3 h=120, 4 h=160).
+  (Las columnas tarifa_3h/tarifa_mas de SQL 18 quedaron obsoletas; ya no se usan.)
+  costoArbitroTramo() en lib/types.ts. VARIOS árbitros por evento (tabla puente `evento_arbitros`);
+  costo_arbitraje = suma de costoArbitroTramo() de los elegidos. SQL: 18_arbitros_tarifas.
   - costo_por_participante se redondea HACIA ARRIBA a soles enteros (Math.ceil); el excedente
     aumenta la ganancia. El form muestra el desglose: egresos / recaudación (si se llena) / ganancia.
   - Un evento ya realizado (eventoYaTermino) NO se edita (barrera en la Server Action + redirect
