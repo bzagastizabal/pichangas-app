@@ -158,6 +158,66 @@ export type Pago = {
   comprobante_eliminado: boolean;
 };
 
+// Movimientos financieros independientes (donaciones, premios, gastos varios,
+// etc.). NO incluye los costos/ingresos automáticos de los eventos.
+export type TipoMovimiento = 'ingreso' | 'egreso';
+export type CategoriaMovimiento =
+  | 'donacion'
+  | 'premio'
+  | 'aporte'
+  | 'saldo_pichanga'
+  | 'compra'
+  | 'gasto'
+  | 'pago'
+  | 'reembolso'
+  | 'otro';
+export type EstadoMovimiento = 'pendiente' | 'aprobado' | 'rechazado';
+
+// Categorías por tipo: el form solo deja elegir las que correspondan.
+export const CATEGORIAS_INGRESO: CategoriaMovimiento[] = [
+  'donacion',
+  'premio',
+  'aporte',
+  'saldo_pichanga',
+  'otro',
+];
+export const CATEGORIAS_EGRESO: CategoriaMovimiento[] = [
+  'compra',
+  'gasto',
+  'pago',
+  'reembolso',
+  'otro',
+];
+
+export const ETIQUETA_CATEGORIA: Record<CategoriaMovimiento, string> = {
+  donacion: 'Donación',
+  premio: 'Premio',
+  aporte: 'Aporte',
+  saldo_pichanga: 'Saldo a favor (pichanga)',
+  compra: 'Compra',
+  gasto: 'Gasto',
+  pago: 'Pago',
+  reembolso: 'Reembolso',
+  otro: 'Otro',
+};
+
+export type Movimiento = {
+  id: string;
+  tipo: TipoMovimiento;
+  categoria: CategoriaMovimiento;
+  monto: number;
+  descripcion: string;
+  fecha: string;
+  evento_id: string | null;
+  url_sustento: string;
+  estado: EstadoMovimiento;
+  creado_por: string;
+  aprobado_por: string | null;
+  fecha_aprobado: string | null;
+  motivo_rechazo: string | null;
+  created_at: string;
+};
+
 export type Notificacion = {
   id: string;
   usuario_id: string;

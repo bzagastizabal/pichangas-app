@@ -18,7 +18,10 @@ const grupos = [
   },
   {
     titulo: 'Finanzas',
-    items: [{ href: '/admin/finanzas', label: 'Finanzas', icon: '📊' }],
+    items: [
+      { href: '/admin/finanzas', label: 'Finanzas', icon: '📊' },
+      { href: '/admin/movimientos', label: 'Movimientos', icon: '💰' },
+    ],
   },
   {
     titulo: 'Configuración',
