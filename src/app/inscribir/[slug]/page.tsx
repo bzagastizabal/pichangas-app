@@ -11,6 +11,8 @@ import type { EstadoInscripcion, Evento, Inscripcion, Pago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { linkGoogleCalendar } from '@/lib/calendario';
 import { Pista } from '@/components/Pista';
+import { MarcaClub } from '@/components/MarcaClub';
+import { BannerMarchaBlanca } from '@/components/BannerMarchaBlanca';
 import { BotonInscribirse } from './BotonInscribirse';
 import { FormComprobante } from './FormComprobante';
 
@@ -43,8 +45,9 @@ export async function generateMetadata({
 
   if (!data) {
     return {
-      title: 'Pichanga — CMT Basquetball',
-      description: 'Inscríbete a las pichangas del CMT Basquetball Club.',
+      title: 'Pichanga — CMT BasketBall Club',
+      description:
+        'Inscríbete a las pichangas del CMT BasketBall Club (Clorinda Matto de Turner).',
     };
   }
 
@@ -52,7 +55,7 @@ export async function generateMetadata({
   const fecha = formatearFechaLima(data.fecha_hora_evento);
   const costo = soles.format(Number(data.costo_por_participante));
   const titulo = `Pichanga en ${sede} 🏀`;
-  const descripcion = `${fecha} · Costo ${costo}. Reserva tu cupo con CMT Basquetball.`;
+  const descripcion = `${fecha} · Costo ${costo}. Reserva tu cupo con el CMT BasketBall Club.`;
   return {
     title: titulo,
     description: descripcion,
@@ -74,7 +77,9 @@ export default async function InscribirPage({
     const next = `/inscribir/${slug}`;
     return (
       <div className={tarjeta}>
-        <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+        <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+        <MarcaClub />
+        <BannerMarchaBlanca />
         <h1 className="text-xl font-bold">Inscríbete a la pichanga 🏀</h1>
         <p className="text-sm text-tenue">
           Inicia sesión o crea tu cuenta para ver los detalles y reservar tu cupo.
@@ -153,7 +158,8 @@ export default async function InscribirPage({
 
   return (
     <div className={tarjeta}>
-      <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+      <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+      <MarcaClub />
       <div>
         <h1 className="text-xl font-bold">{evento.sedes?.nombre ?? 'Pichanga'} 🏀</h1>
         <p className="text-sm text-tenue">

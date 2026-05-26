@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ContactosStaff } from '@/components/ContactosStaff';
+import { MarcaClub } from '@/components/MarcaClub';
 
 const paso = 'rounded-lg border border-borde p-4';
 
@@ -8,7 +9,8 @@ export default function AyudaPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-10 space-y-6">
       <div className="text-center space-y-2">
-        <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+        <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+        <MarcaClub />
         <h1 className="text-2xl font-bold">Cómo funciona 🏀</h1>
         <p className="text-sm text-tenue">Guía rápida para unirte a las pichangas.</p>
       </div>

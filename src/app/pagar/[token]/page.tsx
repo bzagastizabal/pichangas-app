@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verificarTokenPago } from '@/lib/token-pago';
 import { formatearFechaLima } from '@/lib/fechas';
+import { MarcaClub } from '@/components/MarcaClub';
 import { FormVoucher } from './FormVoucher';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
@@ -55,7 +56,8 @@ export default async function PagarPage({
 
   return (
     <div className={tarjeta}>
-      <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+      <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-16 w-auto mx-auto" />
+      <MarcaClub />
       <div>
         <h1 className="text-xl font-bold">Hola, {insc.perfiles?.nombre_completo ?? 'jugador'} 🏀</h1>
         <p className="text-sm text-tenue">

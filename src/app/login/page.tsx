@@ -9,6 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { MarcaClub } from '@/components/MarcaClub';
 import { emailPorDni } from './actions';
 
 const campo = 'border border-borde p-2 w-full rounded bg-campo text-texto';
@@ -52,8 +53,9 @@ function LoginForm() {
 
   return (
     <div className="max-w-sm mx-auto mt-16 p-6 space-y-4">
-      <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-20 w-auto mx-auto" />
-      <h1 className="text-2xl font-bold">Iniciar sesión</h1>
+      <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-20 w-auto mx-auto" />
+      <MarcaClub />
+      <h1 className="text-2xl font-bold text-center">Iniciar sesión</h1>
       <input className={campo} type="text" placeholder="Correo o DNI"
         value={usuario} onChange={(e) => setUsuario(e.target.value)} />
       <input className={campo} type="password" placeholder="Contraseña"

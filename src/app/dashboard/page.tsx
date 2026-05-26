@@ -11,6 +11,8 @@ import { formatearFechaLima } from '@/lib/fechas';
 import { marcarNotificacionesLeidas } from './actions';
 import { cerrarSesion } from '@/lib/auth-actions';
 import { Pista } from '@/components/Pista';
+import { MarcaClub } from '@/components/MarcaClub';
+import { BannerMarchaBlanca } from '@/components/BannerMarchaBlanca';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
@@ -74,7 +76,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-md mx-auto mt-16 p-6 space-y-3">
-      <Image src="/cmt_logo.png" alt="CMT" width={900} height={1000} priority className="h-16 w-auto" />
+      <div className="flex items-center gap-3">
+        <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-16 w-auto" />
+        <MarcaClub align="left" />
+      </div>
+      <BannerMarchaBlanca />
       <h1 className="text-2xl font-bold">
         Hola, {perfil?.nombre_completo ?? 'jugador'} 🏀
       </h1>

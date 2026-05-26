@@ -19,32 +19,29 @@ const geistMono = Geist_Mono({
 const sitio =
   process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pichangas-app.vercel.app';
 
+const NOMBRE = 'CMT BasketBall Club — Clorinda Matto de Turner';
+const TITULO = `${NOMBRE} · Pichangas 🏀`;
+const DESCRIPCION =
+  'Plataforma del CMT BasketBall Club (Clorinda Matto de Turner) para inscribirte a las pichangas y pagar tu cupo.';
+
 export const metadata: Metadata = {
   metadataBase: new URL(sitio),
-  title: 'CMT Basquetball — Pichangas 🏀',
-  description:
-    'Plataforma del CMT Basquetball Club para inscribirte a las pichangas y pagar tu cupo.',
+  title: TITULO,
+  description: DESCRIPCION,
   openGraph: {
     type: 'website',
-    siteName: 'CMT Basquetball',
-    title: 'CMT Basquetball — Pichangas 🏀',
-    description:
-      'Plataforma del CMT Basquetball Club para inscribirte a las pichangas y pagar tu cupo.',
+    siteName: NOMBRE,
+    title: TITULO,
+    description: DESCRIPCION,
     locale: 'es_PE',
     images: [
-      {
-        url: '/og-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'CMT Basquetball Club',
-      },
+      { url: '/og-image.jpg', width: 1200, height: 630, alt: NOMBRE },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CMT Basquetball — Pichangas 🏀',
-    description:
-      'Plataforma del CMT Basquetball Club para inscribirte a las pichangas y pagar tu cupo.',
+    title: TITULO,
+    description: DESCRIPCION,
     images: ['/og-image.jpg'],
   },
 };
