@@ -76,7 +76,7 @@ export default async function ArbitrosPage({
                   </td>
                   <td className="p-3">
                     {arbitro.activo ? (
-                      <span className="text-green-700">Activo</span>
+                      <span className="text-green-400">Activo</span>
                     ) : (
                       <span className="text-tenue">Inactivo</span>
                     )}

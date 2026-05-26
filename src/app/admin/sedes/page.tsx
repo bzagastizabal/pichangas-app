@@ -73,7 +73,7 @@ export default async function SedesPage({
                   </td>
                   <td className="p-3">
                     {sede.activo ? (
-                      <span className="text-green-700">Activa</span>
+                      <span className="text-green-400">Activa</span>
                     ) : (
                       <span className="text-tenue">Inactiva</span>
                     )}

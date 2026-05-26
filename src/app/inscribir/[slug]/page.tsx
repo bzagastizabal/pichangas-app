@@ -140,7 +140,7 @@ export default async function InscribirPage({
       <div className="rounded-lg bg-fondo p-4 text-sm space-y-1">
         <p>
           Costo por jugador:{' '}
-          <span className="font-bold text-orange-700">
+          <span className="font-bold text-orange-400">
             {soles.format(evento.costo_por_participante)}
           </span>
         </p>

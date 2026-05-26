@@ -104,9 +104,9 @@ export default async function FinanzasPage({
       </form>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Resumen titulo="Ingresos" valor={soles.format(tot.ingresos)} color="text-green-700" />
-        <Resumen titulo="Egresos" valor={soles.format(tot.egresos)} color="text-red-700" />
-        <Resumen titulo="Ganancia" valor={soles.format(tot.ganancia)} color="text-orange-700" />
+        <Resumen titulo="Ingresos" valor={soles.format(tot.ingresos)} color="text-green-400" />
+        <Resumen titulo="Egresos" valor={soles.format(tot.egresos)} color="text-red-400" />
+        <Resumen titulo="Ganancia" valor={soles.format(tot.ganancia)} color="text-orange-400" />
         <Resumen titulo="Morosos" valor={String(tot.morosos)} color="text-texto" />
       </div>
 
@@ -136,8 +136,8 @@ export default async function FinanzasPage({
                       {formatearFechaLima(ev.fecha_hora_evento)}
                     </div>
                   </td>
-                  <td className="p-3 text-right text-green-700">{soles.format(bal.ingresos)}</td>
-                  <td className="p-3 text-right text-red-700">{soles.format(bal.egresos)}</td>
+                  <td className="p-3 text-right text-green-400">{soles.format(bal.ingresos)}</td>
+                  <td className="p-3 text-right text-red-400">{soles.format(bal.egresos)}</td>
                   <td className="p-3 text-right font-medium">{soles.format(bal.ganancia)}</td>
                   <td className="p-3 text-right">{bal.confirmados}/{ev.cupos_totales}</td>
                   <td className="p-3 text-right">{bal.morosos}</td>
