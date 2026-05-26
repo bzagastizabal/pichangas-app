@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import type { EstadoEvento, EstadoInscripcion, EstadoPago } from '@/lib/types';
+import type {
+  EstadoEvento,
+  EstadoInscripcion,
+  EstadoPago,
+  TipoMovimiento,
+} from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { estadoPagoJugador } from '@/lib/estado-pago';
 
@@ -70,6 +75,25 @@ export default async function FinanzasPage({
     bal: balance(ev, inscripciones.filter((i) => i.evento_id === ev.id)),
   }));
 
+  // Movimientos independientes APROBADOS, en el mismo rango de fechas que los
+  // eventos (donaciones, premios, compras, etc.). Suman al balance global.
+  let movQ = supabase
+    .from('movimientos')
+    .select('tipo, monto')
+    .eq('estado', 'aprobado');
+  if (desde) movQ = movQ.gte('fecha', desde);
+  if (hasta) movQ = movQ.lte('fecha', hasta);
+  const { data: movData } = await movQ;
+  const movs = ((movData as { tipo: TipoMovimiento; monto: number }[] | null) ?? []);
+  const movExtra = movs.reduce(
+    (a, m) => {
+      if (m.tipo === 'ingreso') a.ingresos += Number(m.monto);
+      else a.egresos += Number(m.monto);
+      return a;
+    },
+    { ingresos: 0, egresos: 0 },
+  );
+
   const tot = filas.reduce(
     (a, f) => ({
       ingresos: a.ingresos + f.bal.ingresos,
@@ -79,6 +103,10 @@ export default async function FinanzasPage({
     }),
     { ingresos: 0, egresos: 0, ganancia: 0, morosos: 0 },
   );
+  // Suma de eventos + movimientos extra: balance global del rango.
+  const ingresosGlobal = tot.ingresos + movExtra.ingresos;
+  const egresosGlobal = tot.egresos + movExtra.egresos;
+  const gananciaGlobal = ingresosGlobal - egresosGlobal;
 
   return (
     <div className="space-y-6">
@@ -104,10 +132,34 @@ export default async function FinanzasPage({
       </form>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Resumen titulo="Ingresos" valor={soles.format(tot.ingresos)} color="text-green-400" />
-        <Resumen titulo="Egresos" valor={soles.format(tot.egresos)} color="text-red-400" />
-        <Resumen titulo="Ganancia" valor={soles.format(tot.ganancia)} color="text-orange-400" />
+        <Resumen titulo="Ingresos (global)" valor={soles.format(ingresosGlobal)} color="text-green-400" />
+        <Resumen titulo="Egresos (global)" valor={soles.format(egresosGlobal)} color="text-red-400" />
+        <Resumen titulo="Ganancia (global)" valor={soles.format(gananciaGlobal)} color={gananciaGlobal >= 0 ? 'text-green-400' : 'text-red-400'} />
         <Resumen titulo="Morosos" valor={String(tot.morosos)} color="text-texto" />
+      </div>
+
+      {/* Desglose: cuánto viene de eventos vs movimientos extra. */}
+      <div className="rounded-lg border border-borde p-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-medium">Desglose del balance</p>
+          <Link href="/admin/movimientos" className="text-orange-400 hover:underline text-xs">
+            Gestionar movimientos →
+          </Link>
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2 text-tenue">
+          <div>
+            <span className="text-texto">Eventos:</span>{' '}
+            <span className="text-green-400">+{soles.format(tot.ingresos)}</span>
+            {' / '}
+            <span className="text-red-400">−{soles.format(tot.egresos)}</span>
+          </div>
+          <div>
+            <span className="text-texto">Movimientos extra (aprobados):</span>{' '}
+            <span className="text-green-400">+{soles.format(movExtra.ingresos)}</span>
+            {' / '}
+            <span className="text-red-400">−{soles.format(movExtra.egresos)}</span>
+          </div>
+        </div>
       </div>
 
       {filas.length === 0 ? (
