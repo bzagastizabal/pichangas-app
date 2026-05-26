@@ -4,12 +4,19 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import type { Arbitro } from '@/lib/types';
 import { BotonEliminar } from '@/app/admin/BotonEliminar';
+import { linkWa } from '@/lib/wa';
 import { alternarActivoArbitro, eliminarArbitro } from './actions';
 
 const soles = new Intl.NumberFormat('es-PE', {
   style: 'currency',
   currency: 'PEN',
 });
+
+// Para que la celda "Tarifas" no se vea cargada: sin decimales cuando el monto
+// es entero (S/ 50 en vez de S/ 50.00).
+function montoCompacto(n: number): string {
+  return Number.isInteger(n) ? `S/ ${n}` : soles.format(n);
+}
 
 export default async function ArbitrosPage({
   searchParams,
@@ -53,8 +60,7 @@ export default async function ArbitrosPage({
               <tr>
                 <th className="p-3">Nombre</th>
                 <th className="p-3">Teléfono</th>
-                <th className="p-3">Precio/hora</th>
-                <th className="p-3">Tarifa/partido</th>
+                <th className="p-3">Tarifas</th>
                 <th className="p-3">Calif.</th>
                 <th className="p-3">Estado</th>
                 <th className="p-3 text-right">Acciones</th>
@@ -64,12 +70,35 @@ export default async function ArbitrosPage({
               {arbitros.map((arbitro) => (
                 <tr key={arbitro.id} className="border-t border-borde">
                   <td className="p-3 font-medium">{arbitro.nombre}</td>
-                  <td className="p-3 text-tenue">{arbitro.telefono ?? '—'}</td>
                   <td className="p-3 text-tenue">
-                    {soles.format(arbitro.precio_por_hora)}
+                    {arbitro.telefono ? (
+                      <a
+                        href={linkWa(
+                          arbitro.telefono,
+                          `Hola ${arbitro.nombre}, te contacto desde la pichanga.`,
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-400 hover:underline"
+                        title="Abrir WhatsApp"
+                      >
+                        {arbitro.telefono}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
                   </td>
-                  <td className="p-3 text-tenue">
-                    {soles.format(arbitro.tarifa_partido)}
+                  <td className="p-3 text-tenue text-xs leading-snug">
+                    <div>
+                      1h <span className="text-texto">{montoCompacto(arbitro.tarifa_1h)}</span>
+                      {' · '}
+                      2h <span className="text-texto">{montoCompacto(arbitro.tarifa_2h)}</span>
+                      {' · '}
+                      3h+ <span className="text-texto">{montoCompacto(arbitro.precio_por_hora)}/h</span>
+                    </div>
+                    {arbitro.tarifa_partido > 0 && (
+                      <div>partido <span className="text-texto">{montoCompacto(arbitro.tarifa_partido)}</span></div>
+                    )}
                   </td>
                   <td className="p-3 text-tenue">
                     {arbitro.calificacion ? `${arbitro.calificacion}★` : '—'}
