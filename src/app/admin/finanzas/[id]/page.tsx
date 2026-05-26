@@ -59,7 +59,9 @@ export default async function FinanzaEventoPage({
 
   const { data: ev } = await supabase
     .from('eventos')
-    .select('*, sedes(nombre), arbitros(nombre)')
+    // FK explícita: 'arbitros' es ambiguo desde que existe la tabla puente
+    // evento_arbitros (multi-árbitro). Aquí basta con el legacy (primer árbitro).
+    .select('*, sedes(nombre), arbitros!eventos_arbitro_id_fkey(nombre)')
     .eq('id', id)
     .maybeSingle();
   if (!ev) notFound();
