@@ -75,24 +75,44 @@ export default async function FinanzasPage({
     bal: balance(ev, inscripciones.filter((i) => i.evento_id === ev.id)),
   }));
 
-  // Movimientos independientes APROBADOS, en el mismo rango de fechas que los
-  // eventos (donaciones, premios, compras, etc.). Suman al balance global.
+  // Movimientos APROBADOS en el rango. Los que tienen evento_id se suman al
+  // balance de ESE evento; los que no, son "extras independientes" del global.
+  // Así no hay doble conteo.
   let movQ = supabase
     .from('movimientos')
-    .select('tipo, monto')
+    .select('tipo, monto, evento_id')
     .eq('estado', 'aprobado');
   if (desde) movQ = movQ.gte('fecha', desde);
   if (hasta) movQ = movQ.lte('fecha', hasta);
   const { data: movData } = await movQ;
-  const movs = ((movData as { tipo: TipoMovimiento; monto: number }[] | null) ?? []);
-  const movExtra = movs.reduce(
-    (a, m) => {
-      if (m.tipo === 'ingreso') a.ingresos += Number(m.monto);
-      else a.egresos += Number(m.monto);
-      return a;
-    },
-    { ingresos: 0, egresos: 0 },
-  );
+  const movs =
+    (movData as { tipo: TipoMovimiento; monto: number; evento_id: string | null }[] | null) ??
+    [];
+
+  // Agrupar por evento_id para sumar al balance de cada uno.
+  const movPorEvento = new Map<string, { ingresos: number; egresos: number }>();
+  let movExtra = { ingresos: 0, egresos: 0 };
+  for (const m of movs) {
+    const monto = Number(m.monto);
+    if (m.evento_id) {
+      const a = movPorEvento.get(m.evento_id) ?? { ingresos: 0, egresos: 0 };
+      if (m.tipo === 'ingreso') a.ingresos += monto;
+      else a.egresos += monto;
+      movPorEvento.set(m.evento_id, a);
+    } else {
+      if (m.tipo === 'ingreso') movExtra.ingresos += monto;
+      else movExtra.egresos += monto;
+    }
+  }
+
+  // Sumar los movimientos vinculados a cada evento en su fila.
+  for (const f of filas) {
+    const m = movPorEvento.get(f.ev.id);
+    if (!m) continue;
+    f.bal.ingresos += m.ingresos;
+    f.bal.egresos += m.egresos;
+    f.bal.ganancia = f.bal.ingresos - f.bal.egresos;
+  }
 
   const tot = filas.reduce(
     (a, f) => ({
@@ -138,7 +158,8 @@ export default async function FinanzasPage({
         <Resumen titulo="Morosos" valor={String(tot.morosos)} color="text-texto" />
       </div>
 
-      {/* Desglose: cuánto viene de eventos vs movimientos extra. */}
+      {/* Desglose: eventos (cuotas + costos + sus movimientos vinculados) vs
+          movimientos independientes (sin evento). */}
       <div className="rounded-lg border border-borde p-4 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-medium">Desglose del balance</p>
@@ -148,13 +169,13 @@ export default async function FinanzasPage({
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-2 text-tenue">
           <div>
-            <span className="text-texto">Eventos:</span>{' '}
+            <span className="text-texto">Eventos (cuotas + costos + mov. vinculados):</span>{' '}
             <span className="text-green-400">+{soles.format(tot.ingresos)}</span>
             {' / '}
             <span className="text-red-400">−{soles.format(tot.egresos)}</span>
           </div>
           <div>
-            <span className="text-texto">Movimientos extra (aprobados):</span>{' '}
+            <span className="text-texto">Movimientos independientes (sin evento):</span>{' '}
             <span className="text-green-400">+{soles.format(movExtra.ingresos)}</span>
             {' / '}
             <span className="text-red-400">−{soles.format(movExtra.egresos)}</span>

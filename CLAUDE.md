@@ -98,11 +98,15 @@ decide si la pichanga se realiza o se cancela.)
   con RLS de admin). Consolidado con filtro por rango de fechas (ingresos/egresos/ganancia/morosos)
   y detalle por evento /admin/finanzas/[id] con lista de inscritos y morosos.
   Ingresos = pagos aprobados; egresos = costo_sede + costo_arbitraje; moroso = pendiente sin pago.
-- **Fase 7 (EN CURSO):** Módulo de **movimientos** financieros INDEPENDIENTES a los eventos
-  (donaciones, premios, aportes, saldos, compras, gastos, pagos, reembolsos). Cada movimiento
-  exige sustento (archivo en bucket privado `sustentos`) y aprobación de admin. Estados:
-  pendiente/aprobado/rechazado; solo los aprobados suman al balance global de /admin/finanzas.
-  RPCs `aprobar_movimiento()` / `rechazar_movimiento()`. RLS: solo admins. SQL: 19_movimientos.
+- **Fase 7 (EN CURSO):** Módulo de **movimientos** financieros (donaciones, premios, aportes,
+  saldos, compras, gastos, pagos, reembolsos). Cada movimiento exige sustento (archivo en
+  bucket privado `sustentos`) y aprobación de admin. Estados pendiente/aprobado/rechazado;
+  solo los aprobados cuentan. RPCs `aprobar_movimiento()` / `rechazar_movimiento()`. SQL: 19.
+  El campo `evento_id` es opcional: un movimiento puede ser INDEPENDIENTE (donación general,
+  gasto de la org) o vinculado a un evento (donación para esa pichanga, gasto extra). En
+  `/admin/finanzas/[id]` los movimientos vinculados se suman al balance del evento (ingresos
+  cuotas + extras vs egresos sede/arbitraje + extras); en el global, los vinculados pertenecen
+  a su evento y los SIN evento aparecen como "Movimientos independientes" (sin doble conteo).
 - **Fase 6 (EN CURSO):** Tarifa de árbitro: 1 h y 2 h tienen tarifa FIJA (tarifa_1h/tarifa_2h);
   3 h o más se cobra POR HORA = precio_por_hora × duración (p. ej. 40 → 3 h=120, 4 h=160).
   (Las columnas tarifa_3h/tarifa_mas de SQL 18 quedaron obsoletas; ya no se usan.)

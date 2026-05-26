@@ -1,7 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import type { EstadoInscripcion, EstadoPago, Egreso, Evento } from '@/lib/types';
+import type {
+  EstadoInscripcion,
+  EstadoMovimiento,
+  EstadoPago,
+  Egreso,
+  Evento,
+  Movimiento,
+} from '@/lib/types';
+import { ETIQUETA_CATEGORIA } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { estadoPagoJugador, type EstadoPagoJugador } from '@/lib/estado-pago';
 import { registrarEgreso, eliminarEgreso } from './actions';
@@ -31,6 +39,12 @@ const colorEstado: Record<EstadoInscripcion, string> = {
   lista_espera: 'text-sky-400',
   expirado: 'text-tenue',
   liberado: 'text-tenue',
+};
+
+const colorMov: Record<EstadoMovimiento, string> = {
+  pendiente: 'text-amber-400',
+  aprobado: 'text-green-400',
+  rechazado: 'text-red-400',
 };
 
 const campo = 'border border-borde rounded px-2 py-1.5 text-sm bg-campo text-texto';
@@ -65,12 +79,31 @@ export default async function FinanzaEventoPage({
     .order('fecha_pago', { ascending: false });
   const egresos = (egData as Egreso[]) ?? [];
 
-  const ingresos = inscritos.reduce(
+  // Movimientos vinculados a este evento (donaciones, gastos extra, etc.).
+  const { data: movData } = await supabase
+    .from('movimientos')
+    .select('*')
+    .eq('evento_id', id)
+    .order('fecha', { ascending: false });
+  const movimientos = (movData as Movimiento[]) ?? [];
+
+  const ingresosCuotas = inscritos.reduce(
     (acc, i) => acc + i.pagos.filter((p) => p.estado === 'aprobado').reduce((s, p) => s + p.monto_declarado, 0),
     0,
   );
+  const movAprobados = movimientos.filter((m) => m.estado === 'aprobado');
+  const ingresosExtra = movAprobados
+    .filter((m) => m.tipo === 'ingreso')
+    .reduce((s, m) => s + Number(m.monto), 0);
+  const egresosExtra = movAprobados
+    .filter((m) => m.tipo === 'egreso')
+    .reduce((s, m) => s + Number(m.monto), 0);
+  const ingresos = ingresosCuotas + ingresosExtra;
   const egresoEstimado = evento.costo_sede + evento.costo_arbitraje;
+  const egresosTotales = egresoEstimado + egresosExtra;
+  const gananciaNeta = ingresos - egresosTotales;
   const egresoPagado = egresos.reduce((s, e) => s + e.monto, 0);
+  const movPendientes = movimientos.filter((m) => m.estado === 'pendiente').length;
   const estadoPago = (i: InscDet) =>
     estadoPagoJugador(i.estado, i.pagos, evento.fecha_hora_evento, evento.duracion_horas);
   const esMoroso = (i: InscDet) => estadoPago(i) === 'moroso';
@@ -86,10 +119,36 @@ export default async function FinanzaEventoPage({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Resumen titulo="Ingresos (aprobados)" valor={soles.format(ingresos)} color="text-green-400" />
-        <Resumen titulo="Egreso estimado" valor={soles.format(egresoEstimado)} color="text-tenue" />
-        <Resumen titulo="Egreso pagado" valor={soles.format(egresoPagado)} color="text-red-400" />
-        <Resumen titulo="Ganancia" valor={soles.format(ingresos - egresoEstimado)} color="text-orange-500" />
+        <Resumen titulo="Ingresos totales" valor={soles.format(ingresos)} color="text-green-400" />
+        <Resumen titulo="Egresos totales" valor={soles.format(egresosTotales)} color="text-red-400" />
+        <Resumen
+          titulo="Ganancia neta"
+          valor={soles.format(gananciaNeta)}
+          color={gananciaNeta >= 0 ? 'text-green-400' : 'text-red-400'}
+        />
+        <Resumen titulo="Egreso pagado" valor={soles.format(egresoPagado)} color="text-tenue" />
+      </div>
+
+      {/* Desglose por origen del balance del evento. */}
+      <div className="rounded-lg border border-borde p-4 text-sm space-y-1">
+        <p className="font-medium">Desglose</p>
+        <p className="text-tenue">
+          <span className="text-texto">Ingresos:</span>{' '}
+          cuotas <span className="text-green-400">+{soles.format(ingresosCuotas)}</span>
+          {' · '}
+          extras <span className="text-green-400">+{soles.format(ingresosExtra)}</span>
+        </p>
+        <p className="text-tenue">
+          <span className="text-texto">Egresos:</span>{' '}
+          sede + arbitraje <span className="text-red-400">−{soles.format(egresoEstimado)}</span>
+          {' · '}
+          extras <span className="text-red-400">−{soles.format(egresosExtra)}</span>
+        </p>
+        {movPendientes > 0 && (
+          <p className="text-amber-400">
+            ⚠️ {movPendientes} movimiento(s) pendiente(s) de aprobación: aún no cuentan.
+          </p>
+        )}
       </div>
 
       {/* Pagos a sede / árbitro */}
@@ -130,6 +189,48 @@ export default async function FinanzaEventoPage({
                   <input type="hidden" name="id" value={e.id} />
                   <button type="submit" className="text-red-400 hover:underline">Eliminar</button>
                 </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Movimientos vinculados (donaciones, gastos extras, etc.). */}
+      <section className="rounded-lg border border-borde p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-semibold">Movimientos del evento</h2>
+          <Link
+            href={`/admin/movimientos/nuevo?evento=${evento.id}`}
+            className="text-sm text-orange-400 hover:underline"
+          >
+            + Nuevo movimiento
+          </Link>
+        </div>
+        {movimientos.length === 0 ? (
+          <p className="text-sm text-tenue">
+            Sin movimientos vinculados todavía. Puedes registrar aquí donaciones
+            recibidas o gastos extras de este evento.
+          </p>
+        ) : (
+          <ul className="divide-y divide-borde text-sm">
+            {movimientos.map((m) => (
+              <li key={m.id} className="flex items-center justify-between py-2">
+                <span>
+                  <span className={m.tipo === 'ingreso' ? 'text-green-400' : 'text-red-400'}>
+                    {m.tipo === 'ingreso' ? '↑' : '↓'} {soles.format(Number(m.monto))}
+                  </span>
+                  <span className="text-tenue"> · {ETIQUETA_CATEGORIA[m.categoria]}</span>
+                  <span className="text-tenue"> · {formatearFechaLima(m.fecha)}</span>
+                  {' · '}
+                  <span className={colorMov[m.estado]}>{m.estado}</span>
+                  <div className="text-xs text-tenue">{m.descripcion}</div>
+                </span>
+                <Link
+                  href="/admin/movimientos"
+                  className="text-xs text-tenue hover:underline"
+                >
+                  Gestionar
+                </Link>
               </li>
             ))}
           </ul>

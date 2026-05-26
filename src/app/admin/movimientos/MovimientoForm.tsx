@@ -19,9 +19,11 @@ const label = 'block text-sm font-medium text-texto mb-1';
 export function MovimientoForm({
   action,
   eventos,
+  eventoInicial = '',
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>;
   eventos: { id: string; nombre: string }[];
+  eventoInicial?: string;
 }) {
   const [estado, formAction, pending] = useActionState(action, {});
   const [tipo, setTipo] = useState<TipoMovimiento>('ingreso');
@@ -94,7 +96,7 @@ export function MovimientoForm({
           <label className={label} htmlFor="evento_id">
             Evento relacionado (opcional)
           </label>
-          <select id="evento_id" name="evento_id" className={input} defaultValue="">
+          <select id="evento_id" name="evento_id" className={input} defaultValue={eventoInicial}>
             <option value="">— Sin evento —</option>
             {eventos.map((e) => (
               <option key={e.id} value={e.id}>{e.nombre}</option>
