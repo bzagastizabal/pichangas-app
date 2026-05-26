@@ -1,6 +1,7 @@
 // src/app/inscribir/[slug]/page.tsx
 // Página pública de inscripción (enlace directo por slug). Requiere sesión:
 // la RLS no deja a un anónimo ver el evento, así que invitamos a iniciar sesión.
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getSesion } from '@/lib/auth';
@@ -23,6 +24,42 @@ type EventoPublico = Evento & {
 };
 
 const tarjeta = 'max-w-md mx-auto mt-12 p-6 rounded-xl border border-borde bg-tarjeta space-y-4';
+
+// Metadata por evento: para que la previsualizacion en WhatsApp muestre sede y
+// fecha en vez del titulo generico. Se usa el cliente admin (service-role)
+// porque el bot que arma el preview no tiene sesion y la RLS lo bloquearia.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('eventos')
+    .select('fecha_hora_evento, costo_por_participante, sedes(nombre)')
+    .eq('slug_inscripcion', slug)
+    .maybeSingle();
+
+  if (!data) {
+    return {
+      title: 'Pichanga — CMT Basquetball',
+      description: 'Inscríbete a las pichangas del CMT Basquetball Club.',
+    };
+  }
+
+  const sede = (data.sedes as { nombre?: string } | null)?.nombre ?? 'cancha';
+  const fecha = formatearFechaLima(data.fecha_hora_evento);
+  const costo = soles.format(Number(data.costo_por_participante));
+  const titulo = `Pichanga en ${sede} 🏀`;
+  const descripcion = `${fecha} · Costo ${costo}. Reserva tu cupo con CMT Basquetball.`;
+  return {
+    title: titulo,
+    description: descripcion,
+    openGraph: { title: titulo, description: descripcion },
+    twitter: { title: titulo, description: descripcion },
+  };
+}
 
 export default async function InscribirPage({
   params,
