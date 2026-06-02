@@ -98,6 +98,13 @@ decide si la pichanga se realiza o se cancela.)
   con RLS de admin). Consolidado con filtro por rango de fechas (ingresos/egresos/ganancia/morosos)
   y detalle por evento /admin/finanzas/[id] con lista de inscritos y morosos.
   Ingresos = pagos aprobados; egresos = costo_sede + costo_arbitraje; moroso = pendiente sin pago.
+- **Fase 8 (EN CURSO):** Recomendaciones del piloto. SQL 20 agrega fecha_nacimiento+nacionalidad
+  a perfiles, edad_min/edad_max a categorias y foto_url a staff (bucket público `staff_fotos`).
+  /registro y JugadorForm capturan fecha y nacionalidad; la lista de jugadores tiene contador,
+  orden por columna y exporta a CSV (`/admin/jugadores/exportar`). categorias soporta rangos
+  de edad y `categoriaSugeridaPorEdad()` mapea jugador→categoría. Staff acepta foto (ContactosStaff
+  la muestra). Nuevo componente `<CumpleanosDelMes/>` en /dashboard. /login refuerza el CTA
+  "Regístrate" + enlace a /ayuda. El link público de invitación se cambia a /login (no /registro).
 - **Fase 7 (EN CURSO):** Módulo de **movimientos** financieros (donaciones, premios, aportes,
   saldos, compras, gastos, pagos, reembolsos). Cada movimiento exige sustento (archivo en
   bucket privado `sustentos`) y aprobación de admin. Estados pendiente/aprobado/rechazado;

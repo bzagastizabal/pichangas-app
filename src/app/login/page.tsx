@@ -65,15 +65,23 @@ function LoginForm() {
         {cargando ? 'Entrando...' : 'Entrar'}
       </button>
       {mensaje && <p className="text-sm">{mensaje}</p>}
-      <p className="text-sm text-center text-tenue">
-        ¿No tienes cuenta?{' '}
+
+      <div className="rounded-lg border border-borde p-4 space-y-2 text-center">
+        <p className="text-sm text-tenue">¿Aún no eres parte del club?</p>
         <Link
           href={`/registro?next=${encodeURIComponent(next)}`}
-          className="text-orange-600 hover:underline"
+          className="inline-block w-full border border-orange-600 text-orange-400 hover:bg-orange-600/10 py-2 rounded font-medium"
         >
           Regístrate
         </Link>
-      </p>
+        <p className="text-xs text-tenue">
+          Mira las{' '}
+          <Link href="/ayuda" className="text-orange-400 hover:underline">
+            pautas y guía rápida
+          </Link>{' '}
+          antes de crear tu cuenta.
+        </p>
+      </div>
     </div>
   );
 }
