@@ -272,6 +272,59 @@ export type Notificacion = {
   created_at: string;
 };
 
+// Marcador de baloncesto (utilitario independiente).
+export type Marcador = {
+  id: string;
+  slug: string;
+  nombre_local: string;
+  nombre_visitante: string;
+  puntos_local: number;
+  puntos_visitante: number;
+  faltas_local: number;
+  faltas_visitante: number;
+  timeouts_local: number;
+  timeouts_visitante: number;
+  periodo: number;
+  duracion_periodo_seg: number;
+  reloj_restante_ms: number;
+  reloj_corriendo: boolean;
+  reloj_inicio: string | null;
+  shot_duracion_ms: number;
+  shot_restante_ms: number;
+  shot_corriendo: boolean;
+  shot_inicio: string | null;
+  expira_en: string;
+  creado_por: string;
+  created_at: string;
+};
+
+// Calcula los ms restantes ahora para reloj o shot, evitando drift:
+//   corriendo  -> restante_base - (now - inicio_ts)
+//   pausado    -> restante_base
+export function msRestantes(
+  restanteBase: number,
+  corriendo: boolean,
+  inicioIso: string | null,
+  ahoraMs: number = Date.now(),
+): number {
+  if (!corriendo || !inicioIso) return Math.max(0, restanteBase);
+  const inicio = new Date(inicioIso).getTime();
+  return Math.max(0, restanteBase - (ahoraMs - inicio));
+}
+
+// Formato de tiempo: MM:SS si >= 1 min; SS.t si <1 min para precisión visual.
+export function formatearReloj(ms: number): string {
+  const total = Math.max(0, ms);
+  if (total >= 60_000) {
+    const m = Math.floor(total / 60_000);
+    const s = Math.floor((total % 60_000) / 1000);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  const s = Math.floor(total / 1000);
+  const d = Math.floor((total % 1000) / 100);
+  return `${String(s).padStart(2, '0')}.${d}`;
+}
+
 // Estado que devuelven las Server Actions de formularios (para useActionState).
 export type EstadoForm = { error?: string };
 
