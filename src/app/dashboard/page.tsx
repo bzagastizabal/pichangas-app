@@ -13,6 +13,7 @@ import { cerrarSesion } from '@/lib/auth-actions';
 import { Pista } from '@/components/Pista';
 import { MarcaClub } from '@/components/MarcaClub';
 import { BannerMarchaBlanca } from '@/components/BannerMarchaBlanca';
+import { CumpleanosDelMes } from '@/components/CumpleanosDelMes';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
@@ -81,6 +82,7 @@ export default async function DashboardPage() {
         <MarcaClub align="left" />
       </div>
       <BannerMarchaBlanca />
+      <CumpleanosDelMes />
       <h1 className="text-2xl font-bold">
         Hola, {perfil?.nombre_completo ?? 'jugador'} 🏀
       </h1>
