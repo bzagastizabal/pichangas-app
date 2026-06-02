@@ -54,9 +54,39 @@ export type TipoEvento = 'pichanga' | 'amistoso' | 'torneo';
 export type Categoria = {
   id: string;
   nombre: string;
+  // Rango de edad opcional: si se define, podemos sugerir la categoría a partir
+  // de fecha_nacimiento del jugador.
+  edad_min: number | null;
+  edad_max: number | null;
   activo: boolean;
   created_at: string;
 };
+
+// Edad en años cumplidos a partir de la fecha de nacimiento (YYYY-MM-DD).
+export function calcularEdad(fechaNacimiento: string | null | undefined): number | null {
+  if (!fechaNacimiento) return null;
+  const n = new Date(fechaNacimiento);
+  if (Number.isNaN(n.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - n.getFullYear();
+  const m = hoy.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < n.getDate())) edad--;
+  return edad;
+}
+
+// Primera categoría cuyo rango cubre la edad. Devuelve null si no calza.
+export function categoriaSugeridaPorEdad(
+  edad: number | null,
+  categorias: Pick<Categoria, 'id' | 'nombre' | 'edad_min' | 'edad_max'>[],
+): { id: string; nombre: string } | null {
+  if (edad == null) return null;
+  for (const c of categorias) {
+    const min = c.edad_min ?? -Infinity;
+    const max = c.edad_max ?? Infinity;
+    if (edad >= min && edad <= max) return { id: c.id, nombre: c.nombre };
+  }
+  return null;
+}
 
 export type Evento = {
   id: string;
@@ -96,8 +126,22 @@ export type Staff = {
   nombre: string;
   cargo: string | null;
   whatsapp: string | null;
+  foto_url: string | null;
   es_default: boolean;
   orden: number;
+  activo: boolean;
+  created_at: string;
+};
+
+// Tipo público de perfil (se usa en listados / dashboard).
+export type PerfilExtendido = {
+  id: string;
+  nombre_completo: string | null;
+  dni: string | null;
+  telefono: string | null;
+  fecha_nacimiento: string | null;
+  nacionalidad: string | null;
+  rol: 'participante' | 'administrador';
   activo: boolean;
   created_at: string;
 };
