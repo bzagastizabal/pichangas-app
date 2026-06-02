@@ -19,7 +19,7 @@ export default async function EditarJugadorPage({
   const supabase = await createClient();
 
   const [{ data: perfil }, { data: cats }, { data: pc }] = await Promise.all([
-    supabase.from('perfiles').select('id, nombre_completo, dni, telefono, activo').eq('id', id).maybeSingle(),
+    supabase.from('perfiles').select('id, nombre_completo, dni, telefono, fecha_nacimiento, nacionalidad, activo').eq('id', id).maybeSingle(),
     supabase.from('categorias').select('id, nombre').eq('activo', true).order('nombre'),
     supabase.from('perfil_categorias').select('categoria_id').eq('perfil_id', id),
   ]);
@@ -59,6 +59,27 @@ export default async function EditarJugadorPage({
         <div>
           <label className="block text-sm font-medium text-texto mb-1">Teléfono</label>
           <TelefonoInput name="telefono" defaultValue={perfil.telefono} />
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-texto mb-1">Fecha de nacimiento</label>
+            <input
+              name="fecha_nacimiento"
+              type="date"
+              className={input}
+              defaultValue={perfil.fecha_nacimiento ?? ''}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-texto mb-1">Nacionalidad</label>
+            <input
+              name="nacionalidad"
+              className={input}
+              defaultValue={perfil.nacionalidad ?? ''}
+              placeholder="Peruana"
+            />
+          </div>
         </div>
 
         <div>

@@ -16,6 +16,8 @@ export async function crearJugador(
   const nombre = (formData.get('nombre_completo') as string | null)?.trim() ?? '';
   const dni = (formData.get('dni') as string | null)?.trim() ?? '';
   const telefono = (formData.get('telefono') as string | null)?.trim() ?? '';
+  const fechaNac = (formData.get('fecha_nacimiento') as string | null)?.trim() || null;
+  const nacionalidad = (formData.get('nacionalidad') as string | null)?.trim() || null;
   const emailRaw = (formData.get('email') as string | null)?.trim().toLowerCase() ?? '';
   const passRaw = (formData.get('password') as string | null)?.trim() ?? '';
 
@@ -36,13 +38,22 @@ export async function crearJugador(
   const { data: dup } = await admin.from('perfiles').select('id').eq('dni', dni).maybeSingle();
   if (dup) return { error: `Ya existe un jugador con DNI ${dni}.` };
 
-  const { error } = await admin.auth.admin.createUser({
+  const { data: created, error } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
     password,
     user_metadata: { nombre_completo: nombre, telefono, dni },
   });
   if (error) return { error: 'No se pudo crear el jugador: ' + error.message };
+
+  // El trigger crea el perfil con los datos básicos; completamos los nuevos
+  // campos por update aparte para no tener que tocar el trigger.
+  if (created?.user?.id && (fechaNac || nacionalidad)) {
+    await admin
+      .from('perfiles')
+      .update({ fecha_nacimiento: fechaNac, nacionalidad })
+      .eq('id', created.user.id);
+  }
 
   refresh();
   return {};
@@ -56,6 +67,8 @@ export async function guardarJugador(formData: FormData): Promise<void> {
   const nombre = ((formData.get('nombre_completo') as string) || '').trim();
   const telefono = ((formData.get('telefono') as string) || '').trim() || null;
   const dni = ((formData.get('dni') as string) || '').trim() || null;
+  const fechaNac = ((formData.get('fecha_nacimiento') as string) || '').trim() || null;
+  const nacionalidad = ((formData.get('nacionalidad') as string) || '').trim() || null;
   const password = ((formData.get('password') as string) || '').trim();
   const activo = formData.get('activo') === 'on';
   const categorias = formData.getAll('categorias').map((c) => String(c));
@@ -84,7 +97,14 @@ export async function guardarJugador(formData: FormData): Promise<void> {
 
   await admin
     .from('perfiles')
-    .update({ nombre_completo: nombre, telefono, dni, activo })
+    .update({
+      nombre_completo: nombre,
+      telefono,
+      dni,
+      fecha_nacimiento: fechaNac,
+      nacionalidad,
+      activo,
+    })
     .eq('id', id);
 
   // Reemplaza el set de categorías del jugador.

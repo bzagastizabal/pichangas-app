@@ -34,6 +34,14 @@ export function JugadorForm() {
           <TelefonoInput key={resetKey} name="telefono" />
         </div>
         <div>
+          <label className="block text-xs text-tenue mb-1">Fecha de nacimiento</label>
+          <input name="fecha_nacimiento" type="date" className={input} />
+        </div>
+        <div>
+          <label className="block text-xs text-tenue mb-1">Nacionalidad</label>
+          <input name="nacionalidad" className={input} defaultValue="Peruana" />
+        </div>
+        <div>
           <label className="block text-xs text-tenue mb-1">Correo (opcional)</label>
           <input name="email" type="email" className={input} />
         </div>
@@ -41,7 +49,7 @@ export function JugadorForm() {
           <label className="block text-xs text-tenue mb-1">Clave (opcional)</label>
           <input name="password" className={input} placeholder="por defecto: el DNI" />
         </div>
-        <div className="flex items-end">
+        <div className="flex items-end sm:col-span-2">
           <button
             type="submit"
             disabled={pending}

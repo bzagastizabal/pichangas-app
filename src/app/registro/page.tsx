@@ -23,6 +23,8 @@ function RegistroForm() {
   const [nombre, setNombre] = useState('');
   const [dni, setDni] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [fechaNacimiento, setFechaNacimiento] = useState('');
+  const [nacionalidad, setNacionalidad] = useState('Peruana');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -32,7 +34,7 @@ function RegistroForm() {
     setCargando(true);
     setMensaje('');
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -45,6 +47,20 @@ function RegistroForm() {
       setCargando(false);
       setMensaje('Error: ' + error.message);
       return;
+    }
+
+    // El trigger crea el perfil con los datos básicos; completamos los nuevos
+    // campos por update (evita modificar el trigger). El propio usuario puede
+    // hacerlo porque la RLS de perfiles permite a cada uno editar el suyo.
+    const uid = data.user?.id;
+    if (uid) {
+      await supabase
+        .from('perfiles')
+        .update({
+          fecha_nacimiento: fechaNacimiento || null,
+          nacionalidad: nacionalidad.trim() || null,
+        })
+        .eq('id', uid);
     }
 
     // Con "Confirm email" desactivado, signUp ya deja sesión iniciada.
@@ -77,6 +93,11 @@ function RegistroForm() {
       <input className={campo} placeholder="DNI"
         value={dni} onChange={(e) => setDni(e.target.value)} />
       <TelefonoInput onChange={setTelefono} />
+      <label className="block text-xs text-tenue -mb-2">Fecha de nacimiento</label>
+      <input className={campo} type="date"
+        value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
+      <input className={campo} placeholder="Nacionalidad"
+        value={nacionalidad} onChange={(e) => setNacionalidad(e.target.value)} />
       <input className={campo} type="email" placeholder="Correo"
         value={email} onChange={(e) => setEmail(e.target.value)} />
       <input className={campo} type="password" placeholder="Contraseña"
