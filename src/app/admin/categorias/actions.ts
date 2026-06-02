@@ -8,8 +8,32 @@ export async function crearCategoria(formData: FormData): Promise<void> {
   await requireAdmin();
   const nombre = ((formData.get('nombre') as string) || '').trim();
   if (!nombre) return;
+  const min = parseInt((formData.get('edad_min') as string) || '', 10);
+  const max = parseInt((formData.get('edad_max') as string) || '', 10);
   const supabase = await createClient();
-  await supabase.from('categorias').insert({ nombre });
+  await supabase.from('categorias').insert({
+    nombre,
+    edad_min: Number.isFinite(min) && min >= 0 ? min : null,
+    edad_max: Number.isFinite(max) && max >= 0 ? max : null,
+  });
+  refresh();
+}
+
+// Actualiza el rango de edad de una categoría existente (inline en la lista).
+export async function guardarRangoCategoria(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  const min = parseInt((formData.get('edad_min') as string) || '', 10);
+  const max = parseInt((formData.get('edad_max') as string) || '', 10);
+  const supabase = await createClient();
+  await supabase
+    .from('categorias')
+    .update({
+      edad_min: Number.isFinite(min) && min >= 0 ? min : null,
+      edad_max: Number.isFinite(max) && max >= 0 ? max : null,
+    })
+    .eq('id', id);
   refresh();
 }
 
