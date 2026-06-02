@@ -98,6 +98,13 @@ decide si la pichanga se realiza o se cancela.)
   con RLS de admin). Consolidado con filtro por rango de fechas (ingresos/egresos/ganancia/morosos)
   y detalle por evento /admin/finanzas/[id] con lista de inscritos y morosos.
   Ingresos = pagos aprobados; egresos = costo_sede + costo_arbitraje; moroso = pendiente sin pago.
+- **Fase 9 (EN CURSO):** Utilitario **Marcador** de baloncesto independiente (no se asocia a
+  eventos). SQL 21 crea `marcadores` con tiempo (reloj_inicio + reloj_restante_ms = SSOT que
+  evita drift) y shot clock, RLS público de lectura por slug, admin escribe. Realtime
+  habilitado en la publicación `supabase_realtime`. /admin/marcadores: lista, crear, prórroga,
+  eliminar, copiar links. /admin/marcadores/[id]/control: panel del operador con botones
+  grandes y server actions. /marcador/[slug]: pantalla pública fullscreen suscrita a Realtime,
+  el reloj se calcula con Date.now() - reloj_inicio. Links expirables (campo expira_en).
 - **Fase 8 (EN CURSO):** Recomendaciones del piloto. SQL 20 agrega fecha_nacimiento+nacionalidad
   a perfiles, edad_min/edad_max a categorias y foto_url a staff (bucket público `staff_fotos`).
   /registro y JugadorForm capturan fecha y nacionalidad; la lista de jugadores tiene contador,
