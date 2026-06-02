@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Staff } from '@/lib/types';
+import { urlPublica } from '@/lib/storage';
 import { TelefonoInput } from '@/components/TelefonoInput';
 import { guardarStaff } from '../../actions';
 
@@ -27,8 +29,36 @@ export default async function EditarStaffPage({
         <h1 className="text-2xl font-bold">Editar contacto</h1>
       </div>
 
-      <form action={guardarStaff} className="space-y-4">
+      <form action={guardarStaff} encType="multipart/form-data" className="space-y-4">
         <input type="hidden" name="id" value={s.id} />
+
+        <div className="flex items-center gap-4">
+          {s.foto_url ? (
+            <Image
+              src={urlPublica('staff_fotos', s.foto_url)}
+              alt={s.nombre}
+              width={96}
+              height={96}
+              className="h-24 w-24 rounded-full object-cover border border-borde"
+              unoptimized
+            />
+          ) : (
+            <span className="h-24 w-24 inline-flex items-center justify-center rounded-full bg-campo text-tenue text-lg border border-borde">
+              {(s.nombre || '?').slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <div className="flex-1 space-y-2">
+            <label className="block text-sm font-medium text-texto mb-1">Foto</label>
+            <input name="foto" type="file" accept="image/jpeg,image/png,image/webp" className="text-sm" />
+            {s.foto_url && (
+              <label className="flex items-center gap-2 text-xs text-tenue">
+                <input type="checkbox" name="quitar_foto" />
+                Quitar la foto actual
+              </label>
+            )}
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-texto mb-1">Nombre</label>
           <input name="nombre" className={input} defaultValue={s.nombre} required />

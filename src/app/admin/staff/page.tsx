@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
 import type { Staff } from '@/lib/types';
+import { urlPublica } from '@/lib/storage';
 import { TelefonoInput } from '@/components/TelefonoInput';
 import {
   crearStaff,
@@ -24,7 +26,7 @@ export default async function StaffPage() {
         solo el marcado “por defecto”.
       </p>
 
-      <form action={crearStaff} className="flex flex-wrap items-end gap-2 rounded-lg border border-borde p-4">
+      <form action={crearStaff} encType="multipart/form-data" className="flex flex-wrap items-end gap-2 rounded-lg border border-borde p-4">
         <div>
           <label className="block text-xs text-tenue mb-1">Nombre *</label>
           <input name="nombre" className={input} required />
@@ -36,6 +38,10 @@ export default async function StaffPage() {
         <div>
           <label className="block text-xs text-tenue mb-1">WhatsApp</label>
           <TelefonoInput name="whatsapp" />
+        </div>
+        <div>
+          <label className="block text-xs text-tenue mb-1">Foto (opcional)</label>
+          <input name="foto" type="file" accept="image/jpeg,image/png,image/webp" className="text-xs" />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="es_default" />
@@ -50,6 +56,7 @@ export default async function StaffPage() {
         <table className="w-full text-sm">
           <thead className="bg-fondo text-left text-tenue">
             <tr>
+              <th className="p-3">Foto</th>
               <th className="p-3">Nombre</th>
               <th className="p-3">Cargo</th>
               <th className="p-3">WhatsApp</th>
@@ -61,6 +68,22 @@ export default async function StaffPage() {
           <tbody>
             {staff.map((s) => (
               <tr key={s.id} className={`border-t border-borde ${s.activo ? '' : 'opacity-50'}`}>
+                <td className="p-3">
+                  {s.foto_url ? (
+                    <Image
+                      src={urlPublica('staff_fotos', s.foto_url)}
+                      alt={s.nombre}
+                      width={40}
+                      height={40}
+                      className="h-10 w-10 rounded-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-campo text-tenue text-xs">
+                      {(s.nombre || '?').slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                </td>
                 <td className="p-3">{s.nombre}</td>
                 <td className="p-3 text-tenue">{s.cargo ?? '—'}</td>
                 <td className="p-3 text-tenue">{s.whatsapp ?? '—'}</td>
@@ -104,7 +127,7 @@ export default async function StaffPage() {
             ))}
             {staff.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-3 text-tenue">
+                <td colSpan={7} className="p-3 text-tenue">
                   No hay contactos. Agrega uno arriba.
                 </td>
               </tr>

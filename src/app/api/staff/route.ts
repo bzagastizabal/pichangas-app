@@ -6,7 +6,7 @@ export async function GET() {
   const supabase = await createClient();
   const { data } = await supabase
     .from('staff')
-    .select('id, nombre, cargo, whatsapp')
+    .select('id, nombre, cargo, whatsapp, foto_url')
     .eq('activo', true)
     .order('orden', { ascending: true });
   return Response.json(data ?? []);
