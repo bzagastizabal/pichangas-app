@@ -15,10 +15,37 @@
   --color-tenue: #a1a1aa;      /* texto secundario (zinc-400) */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-orbitron: var(--font-orbitron-css);
 }
 
 body {
   background: var(--color-fondo);
   color: var(--color-texto);
   font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Animaciones del marcador (scoreboard). Usar con clases utilitarias. */
+@keyframes scoreboard-flash {
+  0%   { transform: scale(1);    filter: brightness(1) drop-shadow(0 0 0 currentColor); }
+  30%  { transform: scale(1.08); filter: brightness(1.6) drop-shadow(0 0 30px currentColor); }
+  100% { transform: scale(1);    filter: brightness(1) drop-shadow(0 0 0 currentColor); }
+}
+.animate-flash-score { animation: scoreboard-flash 0.7s ease-out; }
+
+@keyframes scoreboard-glow {
+  0%, 100% { filter: brightness(1)   drop-shadow(0 0 16px currentColor); }
+  50%      { filter: brightness(1.4) drop-shadow(0 0 36px currentColor); }
+}
+.animate-glow-soft { animation: scoreboard-glow 1.4s ease-in-out infinite; }
+
+@keyframes scoreboard-pulse-ring {
+  0%   { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.animate-ping-soft::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  animation: scoreboard-pulse-ring 1.3s ease-out infinite;
 }

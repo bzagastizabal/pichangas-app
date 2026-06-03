@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ContactosStaff } from '@/components/ContactosStaff';
 
 // Botón flotante de ayuda (abajo a la derecha): guía + contacto del staff.
+// Se oculta en pantallas de marcador (proyección) para no contaminar la vista.
 export function BotonAyuda() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname() ?? '';
+  if (pathname.startsWith('/marcador/')) return null;
 
   return (
     <>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { BotonAyuda } from "./BotonAyuda";
 
@@ -11,6 +11,15 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Tipografía estilo "scoreboard LED" para los marcadores. display: swap evita
+// FOIT (parpadeo blanco mientras carga).
+const orbitron = Orbitron({
+  variable: "--font-orbitron-css",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["500", "700", "900"],
 });
 
 // Base absoluta para resolver imagenes y enlaces de Open Graph. WhatsApp/Twitter
@@ -54,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}
