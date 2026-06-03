@@ -19,11 +19,19 @@ const label = 'block text-sm font-medium text-texto mb-1';
 export function MovimientoForm({
   action,
   eventos,
+  torneos = [],
+  partidos = [],
   eventoInicial = '',
+  torneoInicial = '',
+  partidoInicial = '',
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>;
   eventos: { id: string; nombre: string }[];
+  torneos?: { id: string; nombre: string }[];
+  partidos?: { id: string; nombre: string }[];
   eventoInicial?: string;
+  torneoInicial?: string;
+  partidoInicial?: string;
 }) {
   const [estado, formAction, pending] = useActionState(action, {});
   const [tipo, setTipo] = useState<TipoMovimiento>('ingreso');
@@ -103,6 +111,34 @@ export function MovimientoForm({
             ))}
           </select>
         </div>
+
+        {torneos.length > 0 && (
+          <div className="sm:col-span-2">
+            <label className={label} htmlFor="torneo_id">
+              Torneo relacionado (opcional)
+            </label>
+            <select id="torneo_id" name="torneo_id" className={input} defaultValue={torneoInicial}>
+              <option value="">— Sin torneo —</option>
+              {torneos.map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {partidos.length > 0 && (
+          <div className="sm:col-span-2">
+            <label className={label} htmlFor="partido_id">
+              Partido del torneo (opcional)
+            </label>
+            <select id="partido_id" name="partido_id" className={input} defaultValue={partidoInicial}>
+              <option value="">— Sin partido —</option>
+              {partidos.map((p) => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="sm:col-span-2">
           <label className={label} htmlFor="sustento">

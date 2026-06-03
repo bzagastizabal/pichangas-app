@@ -51,6 +51,10 @@ export async function crearMovimiento(
 
   const eventoRaw = (formData.get('evento_id') as string | null)?.trim() ?? '';
   const evento_id = eventoRaw === '' ? null : eventoRaw;
+  const torneoRaw = (formData.get('torneo_id') as string | null)?.trim() ?? '';
+  const torneo_id = torneoRaw === '' ? null : torneoRaw;
+  const partidoRaw = (formData.get('partido_id') as string | null)?.trim() ?? '';
+  const partido_id = partidoRaw === '' ? null : partidoRaw;
 
   const archivo = formData.get('sustento') as File | null;
   if (!archivo || archivo.size === 0) {
@@ -83,6 +87,8 @@ export async function crearMovimiento(
     descripcion,
     fecha,
     evento_id,
+    torneo_id,
+    partido_id,
     url_sustento: path, // guardamos el path; firmamos cuando se visualiza
     creado_por: perfil.id,
   });
