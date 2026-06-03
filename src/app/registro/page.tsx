@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { TelefonoInput } from '@/components/TelefonoInput';
+import { NacionalidadInput } from '@/components/NacionalidadInput';
 import { MarcaClub } from '@/components/MarcaClub';
 import { BannerMarchaBlanca } from '@/components/BannerMarchaBlanca';
 
@@ -96,8 +97,8 @@ function RegistroForm() {
       <label className="block text-xs text-tenue -mb-2">Fecha de nacimiento</label>
       <input className={campo} type="date"
         value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
-      <input className={campo} placeholder="Nacionalidad"
-        value={nacionalidad} onChange={(e) => setNacionalidad(e.target.value)} />
+      <label className="block text-xs text-tenue -mb-2">Nacionalidad</label>
+      <NacionalidadInput defaultValue={nacionalidad} onChange={setNacionalidad} />
       <input className={campo} type="email" placeholder="Correo"
         value={email} onChange={(e) => setEmail(e.target.value)} />
       <input className={campo} type="password" placeholder="Contraseña"

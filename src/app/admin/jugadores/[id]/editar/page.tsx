@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Categoria } from '@/lib/types';
 import { TelefonoInput } from '@/components/TelefonoInput';
+import { NacionalidadInput } from '@/components/NacionalidadInput';
 import { guardarJugador } from '../../actions';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
@@ -73,11 +74,9 @@ export default async function EditarJugadorPage({
           </div>
           <div>
             <label className="block text-sm font-medium text-texto mb-1">Nacionalidad</label>
-            <input
+            <NacionalidadInput
               name="nacionalidad"
-              className={input}
-              defaultValue={perfil.nacionalidad ?? ''}
-              placeholder="Peruana"
+              defaultValue={perfil.nacionalidad ?? 'Peruana'}
             />
           </div>
         </div>

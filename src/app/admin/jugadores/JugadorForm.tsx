@@ -3,6 +3,7 @@
 import { useActionState, useRef, useEffect, useState } from 'react';
 import { crearJugador } from './actions';
 import { TelefonoInput } from '@/components/TelefonoInput';
+import { NacionalidadInput } from '@/components/NacionalidadInput';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 
@@ -39,7 +40,7 @@ export function JugadorForm() {
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">Nacionalidad</label>
-          <input name="nacionalidad" className={input} defaultValue="Peruana" />
+          <NacionalidadInput name="nacionalidad" defaultValue="Peruana" />
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">Correo (opcional)</label>
