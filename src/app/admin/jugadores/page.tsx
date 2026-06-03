@@ -140,12 +140,20 @@ export default async function JugadoresPage({
           <span className="text-green-400">{totalActivos}</span> activos
           {totalBaja > 0 && <> · <span>{totalBaja}</span> de baja</>}
         </p>
-        <a
-          href="/admin/jugadores/exportar"
-          className="rounded bg-orange-600 text-white px-3 py-1.5 text-sm"
-        >
-          Exportar a Excel (.csv)
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/jugadores/importar"
+            className="rounded border border-borde text-texto px-3 py-1.5 text-sm hover:border-orange-500"
+          >
+            Importar CSV
+          </Link>
+          <a
+            href="/admin/jugadores/exportar"
+            className="rounded bg-orange-600 text-white px-3 py-1.5 text-sm"
+          >
+            Exportar a Excel (.csv)
+          </a>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-borde">
