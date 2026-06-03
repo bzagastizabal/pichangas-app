@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 
+// Labels compactos (bandera + código) para que el selector no domine la celda
+// del grid cuando el formulario tiene 3+ columnas.
 const PREFIJOS = [
-  { codigo: '51', label: 'Perú +51' },
-  { codigo: '58', label: 'Venezuela +58' },
-  { codigo: '57', label: 'Colombia +57' },
+  { codigo: '51', label: '🇵🇪 +51' },
+  { codigo: '58', label: '🇻🇪 +58' },
+  { codigo: '57', label: '🇨🇴 +57' },
 ];
 
 // Separa un número guardado (con o sin prefijo) en prefijo + resto.
@@ -45,12 +47,13 @@ export function TelefonoInput({
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 w-full min-w-0">
       {name && <input type="hidden" name={name} value={combinado} />}
       <select
         value={pref}
         onChange={(e) => actualizar(e.target.value, num)}
-        className="border border-borde rounded px-2 bg-campo text-texto text-sm"
+        className="shrink-0 border border-borde rounded px-2 py-2 bg-campo text-texto text-sm"
+        aria-label="Código de país"
       >
         {PREFIJOS.map((p) => (
           <option key={p.codigo} value={p.codigo}>
@@ -64,7 +67,7 @@ export function TelefonoInput({
         value={num}
         onChange={(e) => actualizar(pref, e.target.value)}
         placeholder="999 999 999"
-        className="flex-1 border border-borde p-2 rounded bg-campo text-texto"
+        className="flex-1 min-w-0 border border-borde p-2 rounded bg-campo text-texto"
       />
     </div>
   );
