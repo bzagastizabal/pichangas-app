@@ -63,12 +63,12 @@ function PanelEquipo({
     <div
       className={`relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl bg-gradient-to-b from-white/[0.035] to-white/[0.005] ring-1 ring-white/10 p-4 sm:p-6 lg:p-8 backdrop-blur-sm`}
     >
-      {/* Indicador de acento + nombre */}
+      {/* Indicador de acento + nombre — más prominente para identificar al equipo */}
       <div className="flex items-center gap-3 max-w-full">
-        <span className={`h-3 w-3 rounded-full ${acento.punto}`} aria-hidden />
+        <span className={`h-4 w-4 rounded-full ${acento.punto}`} aria-hidden />
         <p
-          className="uppercase tracking-[0.18em] font-semibold text-zinc-200 truncate"
-          style={{ fontSize: 'clamp(0.95rem, 2.2vw, 1.75rem)' }}
+          className="uppercase tracking-[0.18em] font-bold text-white truncate"
+          style={{ fontSize: 'clamp(1.5rem, 4.2vw, 3.75rem)' }}
         >
           {nombre}
         </p>
@@ -191,6 +191,9 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   const relojBajo = relojMs < 60_000 && m.reloj_corriendo;
   const periodoEtiqueta =
     m.periodo <= 4 ? `Q${m.periodo}` : `OT${m.periodo - 4}`;
+  // Fallback a true para marcadores creados antes de SQL 22 (flags todavía nulos).
+  const conReloj: boolean = m.tiene_reloj_periodo ?? true;
+  const conShot: boolean = m.tiene_shot_clock ?? true;
 
   return (
     <div
@@ -286,36 +289,66 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
           </div>
         </header>
 
-        {/* HERO: Periodo + Tiempo */}
+        {/* HERO: Periodo + Tiempo. Si no hay reloj de periodo, el Q toma el
+            protagonismo del hero. */}
         <div className="flex flex-col items-center px-4 pt-1 pb-2 sm:pt-3 sm:pb-4">
-          <div
-            className="inline-flex items-baseline gap-3 text-zinc-400 uppercase tracking-[0.45em]"
-            style={{ fontSize: 'clamp(0.7rem, 1.1vw, 1rem)' }}
-          >
-            <span className="font-orbitron font-bold text-orange-400">{periodoEtiqueta}</span>
-            <span className="text-zinc-600">·</span>
-            <span>Periodo</span>
-          </div>
-          <p
-            className={`font-orbitron font-black tabular-nums leading-none mt-1 ${
-              relojBajo ? 'animate-glow-soft' : ''
-            }`}
-            style={{
-              fontSize: 'clamp(4.5rem, 16vw, 16rem)',
-              color: relojBajo ? '#ef4444' : '#ffffff',
-              textShadow: relojBajo
-                ? '0 0 40px rgba(239,68,68,0.85), 0 0 100px rgba(239,68,68,0.4)'
-                : '0 0 28px rgba(255,255,255,0.45), 0 0 80px rgba(255,255,255,0.15)',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {formatearReloj(relojMs)}
-          </p>
+          {conReloj ? (
+            <>
+              <div
+                className="inline-flex items-baseline gap-3 uppercase tracking-[0.45em]"
+                style={{ fontSize: 'clamp(1.1rem, 2.2vw, 2rem)' }}
+              >
+                <span className="font-orbitron font-black text-orange-400">
+                  {periodoEtiqueta}
+                </span>
+                <span className="text-zinc-600">·</span>
+                <span className="text-zinc-400 font-semibold">Periodo</span>
+              </div>
+              <p
+                className={`font-orbitron font-black tabular-nums leading-none mt-1 ${
+                  relojBajo ? 'animate-glow-soft' : ''
+                }`}
+                style={{
+                  fontSize: 'clamp(4.5rem, 16vw, 16rem)',
+                  color: relojBajo ? '#ef4444' : '#ffffff',
+                  textShadow: relojBajo
+                    ? '0 0 40px rgba(239,68,68,0.85), 0 0 100px rgba(239,68,68,0.4)'
+                    : '0 0 28px rgba(255,255,255,0.45), 0 0 80px rgba(255,255,255,0.15)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {formatearReloj(relojMs)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p
+                className="uppercase tracking-[0.45em] text-zinc-400 font-semibold"
+                style={{ fontSize: 'clamp(1rem, 1.6vw, 1.4rem)' }}
+              >
+                Periodo
+              </p>
+              <p
+                className="font-orbitron font-black tabular-nums leading-none mt-1 text-orange-400"
+                style={{
+                  fontSize: 'clamp(6rem, 22vw, 22rem)',
+                  textShadow: '0 0 40px rgba(251,146,60,0.55), 0 0 90px rgba(251,146,60,0.25)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {periodoEtiqueta}
+              </p>
+            </>
+          )}
         </div>
 
-        {/* MARCADOR: en md+ tres columnas (LOCAL | SHOT | VISITANTE); en móvil
-            se apila LOCAL / SHOT / VISITANTE manteniendo el orden lógico. */}
-        <div className="flex-1 grid gap-3 sm:gap-4 px-3 sm:px-6 pb-4 sm:pb-6 grid-cols-1 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+        {/* MARCADOR: con shot 3 columnas (LOCAL | SHOT | VISITANTE); sin shot,
+            2 columnas balanceadas. En móvil siempre apilado. */}
+        <div
+          className={`flex-1 grid gap-3 sm:gap-4 px-3 sm:px-6 pb-4 sm:pb-6 grid-cols-1 md:items-stretch ${
+            conShot ? 'md:grid-cols-[1fr_auto_1fr]' : 'md:grid-cols-2'
+          }`}
+        >
           <PanelEquipo
             nombre={m.nombre_local}
             puntos={m.puntos_local}
@@ -323,9 +356,11 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             timeouts={m.timeouts_local}
             lado="local"
           />
-          <div className="order-first md:order-none md:flex md:items-center">
-            <ShotClock ms={shotMs} />
-          </div>
+          {conShot && (
+            <div className="order-first md:order-none md:flex md:items-center">
+              <ShotClock ms={shotMs} />
+            </div>
+          )}
           <PanelEquipo
             nombre={m.nombre_visitante}
             puntos={m.puntos_visitante}
