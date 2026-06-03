@@ -21,26 +21,42 @@ export async function crearMarcador(
   const nombre_local = ((formData.get('nombre_local') as string) || '').trim() || 'LOCAL';
   const nombre_visitante =
     ((formData.get('nombre_visitante') as string) || '').trim() || 'VISITANTE';
+  // Los checkboxes envían 'on' cuando están marcados; si no están en el FormData
+  // están desmarcados → flag = false.
+  const tiene_reloj_periodo = formData.get('tiene_reloj_periodo') === 'on';
+  const tiene_shot_clock = formData.get('tiene_shot_clock') === 'on';
   const minutos = Math.max(1, parseInt((formData.get('duracion_min') as string) || '10', 10));
   const shotSeg = Math.max(1, parseInt((formData.get('shot_seg') as string) || '24', 10));
   const horas = Math.max(1, parseInt((formData.get('horas_expiracion') as string) || '24', 10));
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const baseInsert = {
+    slug: nuevoSlug(),
+    nombre_local,
+    nombre_visitante,
+    duracion_periodo_seg: minutos * 60,
+    reloj_restante_ms: minutos * 60 * 1000,
+    shot_duracion_ms: shotSeg * 1000,
+    shot_restante_ms: shotSeg * 1000,
+    tiene_reloj_periodo,
+    tiene_shot_clock,
+    expira_en: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
+    creado_por: perfil.id,
+  };
+  let { data, error } = await supabase
     .from('marcadores')
-    .insert({
-      slug: nuevoSlug(),
-      nombre_local,
-      nombre_visitante,
-      duracion_periodo_seg: minutos * 60,
-      reloj_restante_ms: minutos * 60 * 1000,
-      shot_duracion_ms: shotSeg * 1000,
-      shot_restante_ms: shotSeg * 1000,
-      expira_en: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
-      creado_por: perfil.id,
-    })
+    .insert(baseInsert)
     .select('id')
     .single();
+  // Si todavía no se corrió SQL 22, repetimos sin los flags opcionales.
+  if (error && /tiene_(reloj_periodo|shot_clock)/.test(error.message)) {
+    const sinFlags = { ...baseInsert };
+    delete (sinFlags as Record<string, unknown>).tiene_reloj_periodo;
+    delete (sinFlags as Record<string, unknown>).tiene_shot_clock;
+    const r = await supabase.from('marcadores').insert(sinFlags).select('id').single();
+    data = r.data;
+    error = r.error;
+  }
   if (error || !data) return { error: 'No se pudo crear el marcador: ' + (error?.message ?? '') };
 
   redirect(`/admin/marcadores/${data.id}/control`);

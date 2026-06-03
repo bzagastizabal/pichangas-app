@@ -237,6 +237,9 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
   const relojBajo = relojMs < 60_000 && m.reloj_corriendo;
   const shotPeligro = shotMs < 5000 && m.shot_corriendo;
   const periodoEtiqueta = m.periodo <= 4 ? `Q${m.periodo}` : `OT${m.periodo - 4}`;
+  // Fallback para marcadores creados antes de SQL 22 (los flags llegan nulos).
+  const conReloj: boolean = m.tiene_reloj_periodo ?? true;
+  const conShot: boolean = m.tiene_shot_clock ?? true;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -274,53 +277,65 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
 
       {/* HERO: Tiempo / Play / Shot / Periodo */}
       <div className="rounded-2xl bg-gradient-to-b from-tarjeta/80 to-black/60 backdrop-blur ring-1 ring-white/10 p-4 sm:p-6">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr] items-center">
-          {/* Tiempo */}
-          <div className="text-center lg:text-left">
-            <p className="text-xs text-tenue uppercase tracking-[0.3em]">Tiempo de juego</p>
-            <p
-              className={`font-orbitron font-black tabular-nums leading-none mt-1 ${relojBajo ? 'animate-glow-soft' : ''}`}
-              style={{
-                fontSize: 'clamp(3.5rem, 9vw, 6rem)',
-                color: relojBajo ? '#ef4444' : '#ffffff',
-                textShadow: relojBajo
-                  ? '0 0 24px rgba(239,68,68,0.6)'
-                  : '0 0 18px rgba(255,255,255,0.25)',
-              }}
-            >
-              {formatearReloj(relojMs)}
-            </p>
-            <div className="mt-2 flex justify-center lg:justify-start gap-2">
-              <FormBtn action={resetReloj}>
-                <HiddenId id={m.id} />
-                <Boton tono="neutro">↻ Reset reloj</Boton>
-              </FormBtn>
-            </div>
-          </div>
-
-          {/* Play + Periodo */}
-          <div className="flex flex-col items-center gap-3">
-            <FormBtn action={togglePlay}>
-              <HiddenId id={m.id} />
-              <button
-                type="submit"
-                className={`relative inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
-                  m.reloj_corriendo
-                    ? 'bg-red-600 hover:bg-red-500'
-                    : 'bg-green-600 hover:bg-green-500'
-                }`}
-                aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+        <div
+          className={`grid gap-4 items-center ${
+            conReloj && conShot
+              ? 'lg:grid-cols-[1fr_auto_1fr]'
+              : conReloj || conShot
+                ? 'lg:grid-cols-[1fr_auto]'
+                : 'lg:grid-cols-1'
+          }`}
+        >
+          {/* Tiempo (solo si está activado) */}
+          {conReloj && (
+            <div className="text-center lg:text-left">
+              <p className="text-xs text-tenue uppercase tracking-[0.3em]">Tiempo de juego</p>
+              <p
+                className={`font-orbitron font-black tabular-nums leading-none mt-1 ${relojBajo ? 'animate-glow-soft' : ''}`}
+                style={{
+                  fontSize: 'clamp(3.5rem, 9vw, 6rem)',
+                  color: relojBajo ? '#ef4444' : '#ffffff',
+                  textShadow: relojBajo
+                    ? '0 0 24px rgba(239,68,68,0.6)'
+                    : '0 0 18px rgba(255,255,255,0.25)',
+                }}
               >
-                <IconoPlay pausa={m.reloj_corriendo} />
-              </button>
-            </FormBtn>
+                {formatearReloj(relojMs)}
+              </p>
+              <div className="mt-2 flex justify-center lg:justify-start gap-2">
+                <FormBtn action={resetReloj}>
+                  <HiddenId id={m.id} />
+                  <Boton tono="neutro">↻ Reset reloj</Boton>
+                </FormBtn>
+              </div>
+            </div>
+          )}
+
+          {/* Play + Periodo. Play solo si hay algún cronómetro. */}
+          <div className="flex flex-col items-center gap-3">
+            {(conReloj || conShot) && (
+              <FormBtn action={togglePlay}>
+                <HiddenId id={m.id} />
+                <button
+                  type="submit"
+                  className={`relative inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
+                    m.reloj_corriendo
+                      ? 'bg-red-600 hover:bg-red-500'
+                      : 'bg-green-600 hover:bg-green-500'
+                  }`}
+                  aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+                >
+                  <IconoPlay pausa={m.reloj_corriendo} />
+                </button>
+              </FormBtn>
+            )}
             <div className="flex items-center gap-2">
               <FormBtn action={cambiarPeriodo}>
                 <HiddenId id={m.id} />
                 <input type="hidden" name="delta" value={-1} />
                 <Boton tono="neutro">−Q</Boton>
               </FormBtn>
-              <span className="font-orbitron font-bold text-xl text-orange-300 min-w-[3rem] text-center">
+              <span className="font-orbitron font-bold text-2xl text-orange-300 min-w-[3.5rem] text-center">
                 {periodoEtiqueta}
               </span>
               <FormBtn action={cambiarPeriodo}>
@@ -331,34 +346,36 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
             </div>
           </div>
 
-          {/* Shot */}
-          <div className="text-center lg:text-right">
-            <p className="text-xs text-tenue uppercase tracking-[0.3em]">Shot clock</p>
-            <p
-              className={`font-orbitron font-black tabular-nums leading-none mt-1 ${shotPeligro ? 'animate-glow-soft' : ''}`}
-              style={{
-                fontSize: 'clamp(3.5rem, 9vw, 6rem)',
-                color: shotPeligro ? '#ef4444' : '#fbbf24',
-                textShadow: shotPeligro
-                  ? '0 0 24px rgba(239,68,68,0.6)'
-                  : '0 0 18px rgba(251,191,36,0.4)',
-              }}
-            >
-              {Math.ceil(shotMs / 1000)}
-            </p>
-            <div className="mt-2 flex justify-center lg:justify-end gap-2">
-              <FormBtn action={resetShot}>
-                <HiddenId id={m.id} />
-                <input type="hidden" name="segundos" value={24} />
-                <Boton tono="primario">↻ 24</Boton>
-              </FormBtn>
-              <FormBtn action={resetShot}>
-                <HiddenId id={m.id} />
-                <input type="hidden" name="segundos" value={14} />
-                <Boton tono="primario">↻ 14</Boton>
-              </FormBtn>
+          {/* Shot (solo si está activado) */}
+          {conShot && (
+            <div className="text-center lg:text-right">
+              <p className="text-xs text-tenue uppercase tracking-[0.3em]">Shot clock</p>
+              <p
+                className={`font-orbitron font-black tabular-nums leading-none mt-1 ${shotPeligro ? 'animate-glow-soft' : ''}`}
+                style={{
+                  fontSize: 'clamp(3.5rem, 9vw, 6rem)',
+                  color: shotPeligro ? '#ef4444' : '#fbbf24',
+                  textShadow: shotPeligro
+                    ? '0 0 24px rgba(239,68,68,0.6)'
+                    : '0 0 18px rgba(251,191,36,0.4)',
+                }}
+              >
+                {Math.ceil(shotMs / 1000)}
+              </p>
+              <div className="mt-2 flex justify-center lg:justify-end gap-2">
+                <FormBtn action={resetShot}>
+                  <HiddenId id={m.id} />
+                  <input type="hidden" name="segundos" value={24} />
+                  <Boton tono="primario">↻ 24</Boton>
+                </FormBtn>
+                <FormBtn action={resetShot}>
+                  <HiddenId id={m.id} />
+                  <input type="hidden" name="segundos" value={14} />
+                  <Boton tono="primario">↻ 14</Boton>
+                </FormBtn>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
