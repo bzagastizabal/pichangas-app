@@ -7,6 +7,7 @@
 import { requireAdmin } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarHeader, parsearCSV, parsearFecha } from '@/lib/csv';
+import { normalizarNacionalidad } from '@/lib/nacionalidad';
 
 // Mapa flexible: distintos nombres de columna → campo canónico.
 const MAPA: Record<string, keyof Fila> = {
@@ -102,7 +103,8 @@ export async function importarJugadoresCSV(
       if (campo === 'fecha_nacimiento') f.fecha_nacimiento = parsearFecha(v);
       else if (campo === 'estado') f.estado = parseEstado(v);
       else if (campo === 'email') f[campo] = v.toLowerCase() || null;
-      else if (campo === 'telefono' || campo === 'nacionalidad') f[campo] = v || null;
+      else if (campo === 'nacionalidad') f.nacionalidad = v ? normalizarNacionalidad(v) || null : null;
+      else if (campo === 'telefono') f.telefono = v || null;
       else if (campo === 'dni' || campo === 'nombre_completo') f[campo] = v;
     });
     datos.push({ fila: f, linea: r + 1 });
