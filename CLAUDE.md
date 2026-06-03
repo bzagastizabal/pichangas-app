@@ -149,6 +149,25 @@ decide si la pichanga se realiza o se cancela.)
     el input libre por select 🇵🇪 Perú / 🇻🇪 Venezuela / 🇨🇴 Colombia / 🌎 Otro (con campo libre).
     Normaliza datos viejos (`Peru` → `Peruana`). Usado en registro, alta y edición. El CSV
     import también normaliza al cargar.
+- **Fase 10 (EN CURSO):** Módulo de **Torneos** — control de participación del club en
+  torneos externos. SQL 23: `torneos`, `torneo_jugadores` (roster), `torneo_partidos`,
+  `partido_jugadores` (asistencia jugó/no jugó). `movimientos` gana columnas `torneo_id` y
+  `partido_id` para vincular gastos de inscripción, gastos por partido y aportes — el balance
+  se calcula sumando movimientos aprobados vinculados al torneo o a sus partidos.
+  - **Categoría por edad — nueva regla**: `categoriaDelJugador()` (en lib/types) elige la
+    categoría de RANGO MÁS CHICO entre las que cubren la edad (ej. edad 41 con {17-55} y
+    {38-55} → gana 38-55). Reemplaza la "sugerencia" anterior. `categoriaSugeridaPorEdad`
+    queda como alias retro-compatible.
+  - `/admin/torneos`: lista con estado + posición final + categoría.
+  - `/admin/torneos/[id]`: hub con info, roster (chips), tabla de partidos con récord W-L
+    calculado, balance financiero del torneo y asistencia acumulada por jugador.
+  - `/admin/torneos/[id]/roster`: picker con dos secciones — "Coinciden con la categoría
+    del torneo" (destacada en naranja) y "Otros".
+  - `/admin/torneos/[id]/partidos/[pid]`: detalle del partido con asistencia (checkbox por
+    jugador del roster), edición, eliminación, y atajo para registrar gastos como movimiento
+    pre-vinculado (`?partido=<pid>&torneo=<tid>`).
+  - MovimientoForm acepta `torneoInicial`/`partidoInicial`; la página /admin/movimientos/nuevo
+    lee `?torneo` y `?partido` y trae solo los partidos del torneo seleccionado.
 - **Fase 9 (EN CURSO):** Utilitario **Marcador** de baloncesto independiente (no se asocia a
   eventos).
   - SQL 21: tabla `marcadores` con tiempo (`reloj_inicio` + `reloj_restante_ms` = SSOT que evita
