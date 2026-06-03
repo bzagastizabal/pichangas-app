@@ -84,53 +84,92 @@ decide si la pichanga se realiza o se cancela.)
 
 ## Roadmap (plan de fases)
 - **Fase 1 (COMPLETA):** Auth + roles + RLS + CRUD de `sedes` y `arbitros` (panel /admin).
-- **Fase 2 (COMPLETA):** Crear eventos (cálculo de costo + slug), página pública de inscripción
-  con RPC atómica, subida de comprobante a Storage, panel de aprobación de pagos del admin.
-- **Fase 3 (EN CURSO):** Lógica de cupos atómica implementada en SQL.
-  - aprobar_pago() ahora aplica "el que paga primero gana": un lista_espera que paga
-    desplaza a un pendiente con comprobante más nuevo (o sin pagar) -> 'liberado'.
-  - expirar_y_promover() (pg_cron cada 5 min): expira pendientes vencidos sin pago y
-    promueve lista_espera a pendiente con nueva ventana.
-  - Notificaciones in-app (tabla `notificaciones`): promovido/liberado/expirado/confirmado;
-    se ven en /dashboard. Base para email/WhatsApp (delivery externo = pendiente).
-  - La lista de espera ya puede pagar (compite por cupo). SQL: 06_notificaciones, 07_logica_cupos.
-- **Fase 4 (EN CURSO):** Módulo financiero en /admin/finanzas (sin SQL nuevo; agrega en la app
-  con RLS de admin). Consolidado con filtro por rango de fechas (ingresos/egresos/ganancia/morosos)
-  y detalle por evento /admin/finanzas/[id] con lista de inscritos y morosos.
-  Ingresos = pagos aprobados; egresos = costo_sede + costo_arbitraje; moroso = pendiente sin pago.
-- **Fase 9 (EN CURSO):** Utilitario **Marcador** de baloncesto independiente (no se asocia a
-  eventos). SQL 21 crea `marcadores` con tiempo (reloj_inicio + reloj_restante_ms = SSOT que
-  evita drift) y shot clock, RLS público de lectura por slug, admin escribe. Realtime
-  habilitado en la publicación `supabase_realtime`. /admin/marcadores: lista, crear, prórroga,
-  eliminar, copiar links. /admin/marcadores/[id]/control: panel del operador con botones
-  grandes y server actions. /marcador/[slug]: pantalla pública fullscreen suscrita a Realtime,
-  el reloj se calcula con Date.now() - reloj_inicio. Links expirables (campo expira_en).
-- **Fase 8 (EN CURSO):** Recomendaciones del piloto. SQL 20 agrega fecha_nacimiento+nacionalidad
-  a perfiles, edad_min/edad_max a categorias y foto_url a staff (bucket público `staff_fotos`).
-  /registro y JugadorForm capturan fecha y nacionalidad; la lista de jugadores tiene contador,
-  orden por columna y exporta a CSV (`/admin/jugadores/exportar`). categorias soporta rangos
-  de edad y `categoriaSugeridaPorEdad()` mapea jugador→categoría. Staff acepta foto (ContactosStaff
-  la muestra). Nuevo componente `<CumpleanosDelMes/>` en /dashboard. /login refuerza el CTA
-  "Regístrate" + enlace a /ayuda. El link público de invitación se cambia a /login (no /registro).
-- **Fase 7 (EN CURSO):** Módulo de **movimientos** financieros (donaciones, premios, aportes,
+- **Fase 2 (COMPLETA):** Eventos (cálculo de costo + slug), página pública de inscripción con
+  RPC atómica `inscribirse()` (SELECT FOR UPDATE), subida de comprobante a Storage (`comprobantes`)
+  y panel de aprobación de pagos del admin. SQL: 02, 04, 05.
+- **Fase 3 (COMPLETA):** Lógica de cupos atómica.
+  - `aprobar_pago()` aplica "el que paga primero gana": un lista_espera que paga desplaza a un
+    pendiente con comprobante más nuevo (o sin pagar) → 'liberado'.
+  - `expirar_y_promover()` (pg_cron cada 5 min): expira pendientes vencidos sin pago y promueve
+    lista_espera a pendiente con nueva ventana.
+  - Notificaciones in-app (tabla `notificaciones`): promovido/liberado/expirado/confirmado.
+  - La lista de espera puede pagar (compite por cupo). SQL: 06, 07.
+- **Fase 4 (COMPLETA):** Módulo financiero `/admin/finanzas`. Consolidado con filtro por rango
+  de fechas (ingresos/egresos/ganancia/morosos) y detalle por evento `/admin/finanzas/[id]`
+  con lista de inscritos y morosos. Ingresos = pagos aprobados; egresos base = costo_sede +
+  costo_arbitraje; moroso = pendiente sin pago tras `eventoYaTermino`.
+- **Fase 5 (COMPLETA):** Gestión avanzada de usuarios y branding.
+  - Admin crea jugadores (`/admin/jugadores`) con email sintético `{dni}@jugador.cmt` cuando no
+    tienen correo. Login por DNI (resuelve correo en server action `emailPorDni`). Reiniciar
+    contraseña al DNI por defecto. Edición/baja de jugador con preservación de contraseña en
+    update. Categorías (LIBRE/M40/Damas/etc.) asignables al evento y al perfil (`perfil_categorias`).
+  - Cambiar contraseña en `/cuenta/clave`. Próximas pichangas en /dashboard con filtro por
+    categoría. Notificaciones in-app.
+  - **Branding CMT BasketBall Club — Clorinda Matto de Turner**: metadata con OG image
+    `/og-image.jpg`, fuente Geist, AdminShell con sidebar (Operación / Finanzas / Configuración),
+    `<MarcaClub/>` bajo cada logo, `<BannerMarchaBlanca/>`, tema oscuro permanente, BotonAyuda
+    flotante con ContactosStaff. Tabla `staff` con `es_default` + contacto público vs logueado
+    (`/api/staff` con RLS). `publicaciones` con bucket público (compresión cliente a WebP).
+  - Links de pago expirables via JWT-style HMAC (`lib/token-pago.ts`) — no se persiste en BD.
+  - Email transaccional con Resend (`lib/email.ts`, plantilla `correoHtml` + Google Calendar).
+  - Recordatorios por hora con pg_cron + pg_net hitting `/api/recordatorios?horas=N`.
+- **Fase 6 (COMPLETA):** Tarifa de árbitro por tramos + multi-árbitro + UX de eventos.
+  - 1 h y 2 h con tarifa FIJA (`tarifa_1h`/`tarifa_2h`); 3 h o más se cobra POR HORA =
+    `precio_por_hora × duración` (40 → 3 h=120, 4 h=160). `tarifa_3h`/`tarifa_mas` de SQL 18
+    quedaron obsoletas y ya no se usan. `costoArbitroTramo()` en lib/types.
+  - VARIOS árbitros por evento (tabla puente `evento_arbitros`); `costo_arbitraje` = suma de
+    `costoArbitroTramo()` de los elegidos. SQL: 18.
+  - `costo_por_participante` se redondea HACIA ARRIBA a soles enteros (Math.ceil); el excedente
+    suma a la ganancia. El form muestra desglose egresos / recaudación / ganancia.
+  - Un evento ya realizado (`eventoYaTermino`) NO se edita (barrera en server action + redirect
+    en /editar + UI "Realizado solo lectura"); se COPIA con `/admin/eventos/nueva?desde=<id>`
+    (clona config y árbitros, sin participantes ni fechas).
+- **Fase 7 (COMPLETA):** Módulo de **movimientos** financieros (donaciones, premios, aportes,
   saldos, compras, gastos, pagos, reembolsos). Cada movimiento exige sustento (archivo en
   bucket privado `sustentos`) y aprobación de admin. Estados pendiente/aprobado/rechazado;
   solo los aprobados cuentan. RPCs `aprobar_movimiento()` / `rechazar_movimiento()`. SQL: 19.
-  El campo `evento_id` es opcional: un movimiento puede ser INDEPENDIENTE (donación general,
-  gasto de la org) o vinculado a un evento (donación para esa pichanga, gasto extra). En
-  `/admin/finanzas/[id]` los movimientos vinculados se suman al balance del evento (ingresos
-  cuotas + extras vs egresos sede/arbitraje + extras); en el global, los vinculados pertenecen
-  a su evento y los SIN evento aparecen como "Movimientos independientes" (sin doble conteo).
-- **Fase 6 (EN CURSO):** Tarifa de árbitro: 1 h y 2 h tienen tarifa FIJA (tarifa_1h/tarifa_2h);
-  3 h o más se cobra POR HORA = precio_por_hora × duración (p. ej. 40 → 3 h=120, 4 h=160).
-  (Las columnas tarifa_3h/tarifa_mas de SQL 18 quedaron obsoletas; ya no se usan.)
-  costoArbitroTramo() en lib/types.ts. VARIOS árbitros por evento (tabla puente `evento_arbitros`);
-  costo_arbitraje = suma de costoArbitroTramo() de los elegidos. SQL: 18_arbitros_tarifas.
-  - costo_por_participante se redondea HACIA ARRIBA a soles enteros (Math.ceil); el excedente
-    aumenta la ganancia. El form muestra el desglose: egresos / recaudación (si se llena) / ganancia.
-  - Un evento ya realizado (eventoYaTermino) NO se edita (barrera en la Server Action + redirect
-    en /editar + UI "Realizado solo lectura"); en su lugar se COPIA con
-    /admin/eventos/nueva?desde=<id> (clona config y árbitros, sin participantes ni fechas).
+  `evento_id` es opcional: INDEPENDIENTE (donación general, gasto de la org) o vinculado al
+  evento. `/admin/finanzas/[id]` los suma al balance del evento (cuotas + extras vs sede +
+  arbitraje + extras); en el global, los vinculados pertenecen a su evento y los SIN evento
+  aparecen como "Movimientos independientes" (sin doble conteo).
+- **Fase 8 (COMPLETA):** Recomendaciones del piloto. SQL 20: `fecha_nacimiento` + `nacionalidad`
+  en perfiles, `edad_min`/`edad_max` en categorias, `foto_url` en staff (bucket público
+  `staff_fotos`).
+  - `/registro`, alta admin y edición admin capturan los nuevos campos. Lista de jugadores con
+    contador, ordenamiento por columna (nombre/edad/dni/nacionalidad) y exportación CSV
+    (`/admin/jugadores/exportar` con BOM UTF-8). Categorías sugeridas por rango de edad
+    (`categoriaSugeridaPorEdad()`).
+  - Staff con foto opcional (ContactosStaff la muestra como avatar).
+  - `<CumpleanosDelMes/>` en /dashboard. `/login` con CTA "Regístrate" + link a /ayuda.
+  - **OG image** global con insignia CMT 1200×630. `generateMetadata` en /inscribir.
+  - **Carga masiva por CSV** (`/admin/jugadores/importar`): parser propio (`lib/csv.ts`), upsert
+    por DNI (existe → UPDATE, no toca password; no existe → crea con password = DNI), plantilla
+    descargable, dry-run, tabla de errores. Soporta `;` o `,`; fechas ISO o DD/MM/YYYY.
+  - **NacionalidadInput** (`lib/nacionalidad.ts` + `components/NacionalidadInput.tsx`) reemplaza
+    el input libre por select 🇵🇪 Perú / 🇻🇪 Venezuela / 🇨🇴 Colombia / 🌎 Otro (con campo libre).
+    Normaliza datos viejos (`Peru` → `Peruana`). Usado en registro, alta y edición. El CSV
+    import también normaliza al cargar.
+- **Fase 9 (EN CURSO):** Utilitario **Marcador** de baloncesto independiente (no se asocia a
+  eventos).
+  - SQL 21: tabla `marcadores` con tiempo (`reloj_inicio` + `reloj_restante_ms` = SSOT que evita
+    drift) y shot clock; RLS público de lectura por slug, admin escribe; tabla en la publicación
+    `supabase_realtime`.
+  - SQL 22: flags opcionales `tiene_reloj_periodo` y `tiene_shot_clock` (modo "solo contar
+    puntos"). Form de alta con checkboxes; el visor y el control adaptan layout (grid 1, 2 o 3
+    columnas) y ocultan controles que no aplican. Fallback `?? true` para marcadores legacy.
+  - `/admin/marcadores`: lista con expiración + prórroga + eliminación + copiar links.
+  - `/admin/marcadores/[id]/control`: panel premium del operador (botones touch, fuente
+    Orbitron, identidad CMT, play/pause circular).
+  - `/marcador/[slug]`: visor broadcast a pantalla completa (Orbitron, insignia watermark
+    1500×1500, gradiente, glow naranja/sky por equipo, flash al cambiar puntaje, último minuto
+    rojo pulsante, shot < 5 s alerta, BONUS pulsante, double-click → fullscreen). Reloj se
+    calcula con `Date.now() - reloj_inicio` (sin drift).
+  - **OG image DINÁMICO** por marcador (`opengraph-image.tsx` con `next/og` + `ImageResponse`):
+    WhatsApp ve `🏀 LOCAL 47 – 52 VISITANTE · Marcador en vivo · Q3` con la card "MARCADOR EN
+    VIVO" en rojo, no la card genérica del club.
+  - BotonAyuda se oculta en `/marcador/*` para no contaminar la proyección.
+  - Pendiente: integraciones de proyección al TV (Wake Lock para evitar sleep, QR del visor en
+    el control, modo overlay transparente para OBS, manifest PWA para Android TV).
 
 ## Convenciones
 - Código y UI en español. Variables/tablas en español (ya establecido en el esquema).
