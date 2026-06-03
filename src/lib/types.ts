@@ -74,19 +74,32 @@ export function calcularEdad(fechaNacimiento: string | null | undefined): number
   return edad;
 }
 
-// Primera categoría cuyo rango cubre la edad. Devuelve null si no calza.
-export function categoriaSugeridaPorEdad(
+// Categoría a la que PERTENECE el jugador por su edad. Si calzan varias,
+// gana la de RANGO MÁS CHICO (la más específica). Ej: edad 41, categorías
+// {17-55} (rango 38) y {38-55} (rango 17) → gana 38-55.
+// Sin edad o sin categoría que calce → null.
+export function categoriaDelJugador(
   edad: number | null,
   categorias: Pick<Categoria, 'id' | 'nombre' | 'edad_min' | 'edad_max'>[],
 ): { id: string; nombre: string } | null {
   if (edad == null) return null;
-  for (const c of categorias) {
+  const calzan = categorias.filter((c) => {
     const min = c.edad_min ?? -Infinity;
     const max = c.edad_max ?? Infinity;
-    if (edad >= min && edad <= max) return { id: c.id, nombre: c.nombre };
-  }
-  return null;
+    return edad >= min && edad <= max;
+  });
+  if (calzan.length === 0) return null;
+  // Categorías sin uno de los límites tienen rango infinito (menos específicas).
+  const rango = (c: (typeof calzan)[number]) =>
+    c.edad_min == null || c.edad_max == null
+      ? Number.POSITIVE_INFINITY
+      : c.edad_max - c.edad_min;
+  calzan.sort((a, b) => rango(a) - rango(b));
+  return { id: calzan[0].id, nombre: calzan[0].nombre };
 }
+
+// Alias retro-compatible (algunos archivos todavía lo importan).
+export const categoriaSugeridaPorEdad = categoriaDelJugador;
 
 export type Evento = {
   id: string;
@@ -328,6 +341,48 @@ export function formatearReloj(ms: number): string {
   const d = Math.floor((total % 1000) / 100);
   return `${String(s).padStart(2, '0')}.${d}`;
 }
+
+// ---- Torneos --------------------------------------------------------------
+export type EstadoTorneo =
+  | 'convocados'
+  | 'inscritos'
+  | 'en_curso'
+  | 'finalizado'
+  | 'cancelado';
+
+export type EstadoPartido =
+  | 'programado'
+  | 'jugado'
+  | 'wo'
+  | 'aplazado'
+  | 'cancelado';
+
+export type Torneo = {
+  id: string;
+  nombre: string;
+  organizador: string | null;
+  categoria_id: string | null;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+  ubicacion: string | null;
+  estado: EstadoTorneo;
+  posicion_final: string | null;
+  notas: string | null;
+  created_at: string;
+};
+
+export type Partido = {
+  id: string;
+  torneo_id: string;
+  fecha: string;
+  rival: string;
+  ubicacion: string | null;
+  puntos_propio: number | null;
+  puntos_rival: number | null;
+  estado: EstadoPartido;
+  notas: string | null;
+  created_at: string;
+};
 
 // Estado que devuelven las Server Actions de formularios (para useActionState).
 export type EstadoForm = { error?: string };
