@@ -293,6 +293,10 @@ export type Marcador = {
   shot_restante_ms: number;
   shot_corriendo: boolean;
   shot_inicio: string | null;
+  // Si false, el marcador se proyecta sin reloj de juego (solo contador y Q).
+  tiene_reloj_periodo: boolean;
+  // Si false, no se muestra ni opera shot clock.
+  tiene_shot_clock: boolean;
   expira_en: string;
   creado_por: string;
   created_at: string;
