@@ -239,6 +239,10 @@ function EstadoInscripcionVista({
 
   if (inscripcion) {
     if (inscripcion.estado === 'confirmado') {
+      // Solo decimos "tu pago fue aprobado" si REALMENTE hay un pago aprobado.
+      // Cuando el admin inscribe a alguien manualmente queda confirmado sin un
+      // pago (p. ej. pagó en efectivo) y el mensaje genérico es más honesto.
+      const pagoAprobado = pago?.estado === 'aprobado';
       return (
         <div className="space-y-3">
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-center">
@@ -250,7 +254,11 @@ function EstadoInscripcionVista({
               className="h-28 w-auto mx-auto mb-2"
             />
             <p className="font-medium text-blue-800">🎉 Inscripción confirmada.</p>
-            <p className="text-blue-700">Tu pago fue aprobado. ¡Nos vemos en la cancha!</p>
+            <p className="text-blue-700">
+              {pagoAprobado
+                ? 'Tu pago fue aprobado. ¡Nos vemos en la cancha!'
+                : '¡Nos vemos en la cancha!'}
+            </p>
           </div>
           {botonCalendario}
         </div>
