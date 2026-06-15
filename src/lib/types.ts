@@ -120,6 +120,9 @@ export type Evento = {
   costo_por_participante: number;
   estado: EstadoEvento;
   slug_inscripcion: string;
+  // Destino del pago (Yape/Plin). Snapshot al momento del alta del evento.
+  pago_telefono: string | null;
+  pago_titular: string | null;
   created_at: string;
 };
 
