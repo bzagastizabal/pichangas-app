@@ -24,6 +24,8 @@ type CamposValidados = {
   costo_arbitraje: number;
   porcentaje_ganancia: number;
   costo_por_participante: number;
+  pago_telefono: string | null;
+  pago_titular: string | null;
 };
 
 function num(formData: FormData, name: string): number {
@@ -107,6 +109,12 @@ function validar(
     cupos_totales,
   );
 
+  const pago_titular = ((formData.get('pago_titular') as string) ?? '').trim() || null;
+  // Normaliza a solo dígitos. Si quedan demasiado pocos lo guardamos null para
+  // no mostrar un número roto a los jugadores.
+  const telDigitos = ((formData.get('pago_telefono') as string) ?? '').replace(/\D/g, '');
+  const pago_telefono = telDigitos.length >= 6 ? telDigitos : null;
+
   return {
     ok: true,
     arbitros,
@@ -124,6 +132,8 @@ function validar(
       costo_arbitraje,
       porcentaje_ganancia,
       costo_por_participante,
+      pago_telefono,
+      pago_titular,
     },
   };
 }

@@ -38,6 +38,7 @@ export function EventoForm({
   arbitros,
   arbitrosSeleccionados,
   categorias,
+  staff,
   inicial,
   esCopia = false,
 }: {
@@ -46,6 +47,7 @@ export function EventoForm({
   arbitros: OpcionArbitro[];
   arbitrosSeleccionados: string[];
   categorias: { id: string; nombre: string }[];
+  staff: { id: string; nombre: string; whatsapp: string | null }[];
   inicial?: Evento;
   // En modo copia tomamos toda la config de `inicial` pero creamos un evento
   // nuevo: sin id (no edita) y con fechas en blanco (se eligen de nuevo).
@@ -60,6 +62,17 @@ export function EventoForm({
   const [costoArbitraje, setCostoArbitraje] = useState(inicial?.costo_arbitraje ?? 0);
   const [porcentaje, setPorcentaje] = useState(inicial?.porcentaje_ganancia ?? 0);
   const [cupos, setCupos] = useState(inicial?.cupos_totales ?? 20);
+  const [pagoTitular, setPagoTitular] = useState(inicial?.pago_titular ?? '');
+  const [pagoTelefono, setPagoTelefono] = useState(inicial?.pago_telefono ?? '');
+
+  // Atajo "cargar desde staff": al elegir un miembro, copia su nombre y whatsapp
+  // a los inputs (snapshot). El admin puede editarlos despues.
+  function cargarDesdeStaff(id: string) {
+    const s = staff.find((x) => x.id === id);
+    if (!s) return;
+    setPagoTitular(s.nombre);
+    setPagoTelefono(s.whatsapp ?? '');
+  }
 
   const precioDe = (id: string, lista: Opcion[]) =>
     lista.find((x) => x.id === id)?.precio_por_hora ?? 0;
@@ -350,6 +363,69 @@ export function EventoForm({
         su tarifa por tramo de horas. Puedes ajustarlos a mano si hay un costo
         especial.
       </p>
+
+      {/* Destino del pago (Yape/Plin) — se muestra a los jugadores en /inscribir */}
+      <div className="rounded-lg border border-borde p-4 space-y-3">
+        <div>
+          <p className="text-sm font-medium text-texto">
+            Destino del pago (Yape / Plin)
+            <Pista texto="Es el número y nombre que verán los jugadores cuando vayan a pagar su cupo. Si lo dejas vacío, verán solo un aviso genérico." />
+          </p>
+          <p className="text-xs text-tenue">
+            Usa el atajo para cargar los datos de un miembro del staff o escribe otro
+            número directamente.
+          </p>
+        </div>
+
+        {staff.length > 0 && (
+          <div>
+            <label className="block text-xs text-tenue mb-1">Cargar desde staff</label>
+            <select
+              className={input}
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) cargarDesdeStaff(e.target.value);
+                e.target.value = '';
+              }}
+            >
+              <option value="">— Elegir un miembro del staff…</option>
+              {staff
+                .filter((s) => s.whatsapp)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre} · {s.whatsapp}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className={label} htmlFor="pago_titular">Titular</label>
+            <input
+              id="pago_titular"
+              name="pago_titular"
+              className={input}
+              value={pagoTitular}
+              onChange={(e) => setPagoTitular(e.target.value)}
+              placeholder="Nombre de quien recibe el pago"
+            />
+          </div>
+          <div>
+            <label className={label} htmlFor="pago_telefono">Teléfono (Yape/Plin)</label>
+            <input
+              id="pago_telefono"
+              name="pago_telefono"
+              className={input}
+              value={pagoTelefono}
+              onChange={(e) => setPagoTelefono(e.target.value)}
+              placeholder="51999888777"
+              inputMode="numeric"
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-lg bg-orange-50 border border-orange-200 p-4 space-y-3">
         <div>

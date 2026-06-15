@@ -22,6 +22,7 @@ export default async function EditarEventoPage({
     { data: arbitros },
     { data: categorias },
     { data: relArbitros },
+    { data: staff },
   ] = await Promise.all([
     supabase.from('eventos').select('*').eq('id', id).single(),
     supabase.from('sedes').select('id, nombre, precio_por_hora').order('nombre'),
@@ -31,6 +32,12 @@ export default async function EditarEventoPage({
       .order('nombre'),
     supabase.from('categorias').select('id, nombre').order('nombre'),
     supabase.from('evento_arbitros').select('arbitro_id').eq('evento_id', id),
+    supabase
+      .from('staff')
+      .select('id, nombre, whatsapp')
+      .eq('activo', true)
+      .order('orden')
+      .order('nombre'),
   ]);
 
   if (!evento) notFound();
@@ -57,6 +64,7 @@ export default async function EditarEventoPage({
         arbitros={arbitros ?? []}
         arbitrosSeleccionados={arbitrosSeleccionados}
         categorias={categorias ?? []}
+        staff={(staff as { id: string; nombre: string; whatsapp: string | null }[]) ?? []}
         inicial={ev}
       />
     </div>

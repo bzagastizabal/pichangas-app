@@ -14,19 +14,26 @@ export default async function NuevoEventoPage({
 }) {
   const { desde } = await searchParams;
   const supabase = await createClient();
-  const [{ data: sedes }, { data: arbitros }, { data: categorias }] = await Promise.all([
-    supabase
-      .from('sedes')
-      .select('id, nombre, precio_por_hora')
-      .eq('activo', true)
-      .order('nombre'),
-    supabase
-      .from('arbitros')
-      .select('id, nombre, precio_por_hora, tarifa_1h, tarifa_2h')
-      .eq('activo', true)
-      .order('nombre'),
-    supabase.from('categorias').select('id, nombre').eq('activo', true).order('nombre'),
-  ]);
+  const [{ data: sedes }, { data: arbitros }, { data: categorias }, { data: staff }] =
+    await Promise.all([
+      supabase
+        .from('sedes')
+        .select('id, nombre, precio_por_hora')
+        .eq('activo', true)
+        .order('nombre'),
+      supabase
+        .from('arbitros')
+        .select('id, nombre, precio_por_hora, tarifa_1h, tarifa_2h')
+        .eq('activo', true)
+        .order('nombre'),
+      supabase.from('categorias').select('id, nombre').eq('activo', true).order('nombre'),
+      supabase
+        .from('staff')
+        .select('id, nombre, whatsapp')
+        .eq('activo', true)
+        .order('orden')
+        .order('nombre'),
+    ]);
 
   // Si venimos de "Copiar", traemos el evento origen y sus árbitros.
   let base: Evento | undefined;
@@ -55,6 +62,7 @@ export default async function NuevoEventoPage({
         arbitros={arbitros ?? []}
         arbitrosSeleccionados={arbitrosSeleccionados}
         categorias={categorias ?? []}
+        staff={(staff as { id: string; nombre: string; whatsapp: string | null }[]) ?? []}
         inicial={base}
         esCopia={!!base}
       />
