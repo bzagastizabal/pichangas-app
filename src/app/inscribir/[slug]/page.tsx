@@ -14,6 +14,7 @@ import { Pista } from '@/components/Pista';
 import { MarcaClub } from '@/components/MarcaClub';
 import { BannerMarchaBlanca } from '@/components/BannerMarchaBlanca';
 import { BotonInscribirse } from './BotonInscribirse';
+import { DestinoPago } from './DestinoPago';
 import { FormComprobante } from './FormComprobante';
 
 const soles = new Intl.NumberFormat('es-PE', {
@@ -289,6 +290,11 @@ function EstadoInscripcionVista({
                   {pago.motivo_rechazo ? `: ${pago.motivo_rechazo}` : ''}. Sube uno nuevo.
                 </p>
               )}
+              <DestinoPago
+                titular={evento.pago_titular ?? null}
+                telefono={evento.pago_telefono ?? null}
+                monto={evento.costo_por_participante}
+              />
               <FormComprobante
                 inscripcionId={inscripcion.id}
                 montoSugerido={evento.costo_por_participante}
@@ -335,6 +341,11 @@ function EstadoInscripcionVista({
               {pago.motivo_rechazo ? `: ${pago.motivo_rechazo}` : ''}. Sube uno nuevo.
             </p>
           )}
+          <DestinoPago
+            titular={evento.pago_titular ?? null}
+            telefono={evento.pago_telefono ?? null}
+            monto={evento.costo_por_participante}
+          />
           <FormComprobante
             inscripcionId={inscripcion.id}
             montoSugerido={evento.costo_por_participante}
