@@ -2,6 +2,7 @@
 
 import { refresh } from 'next/cache';
 import { requireAdmin } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { EstadoForm, MetodoPago } from '@/lib/types';
 
@@ -106,6 +107,7 @@ export async function aprobarPagoManual(
   if (!METODOS_PAGO.includes(metodo as MetodoPago)) return { error: 'Método inválido.' };
   if (!Number.isFinite(monto) || monto <= 0) return { error: 'Monto inválido.' };
 
+  // INSERT con service-role (bypassa RLS, asegurando que entre el pago).
   const admin = createAdminClient();
   const { data: pago, error: errInsert } = await admin
     .from('pagos')
@@ -121,8 +123,15 @@ export async function aprobarPagoManual(
     return { error: 'No se pudo registrar el pago: ' + (errInsert?.message ?? '') };
   }
 
-  const { error: errRpc } = await admin.rpc('aprobar_pago', { p_pago_id: pago.id });
-  if (errRpc) return { error: 'No se pudo aprobar: ' + errRpc.message };
+  // El RPC chequea es_admin() leyendo auth.uid(); por eso va con el cliente
+  // ligado a la sesion del admin (no con service-role que tiene uid null).
+  const supabase = await createClient();
+  const { error: errRpc } = await supabase.rpc('aprobar_pago', { p_pago_id: pago.id });
+  if (errRpc) {
+    // Limpia el pago huerfano si la RPC falla, sino queda en en_revision sin avisar.
+    await admin.from('pagos').delete().eq('id', pago.id);
+    return { error: 'No se pudo aprobar: ' + errRpc.message };
+  }
 
   refresh();
   return {};
