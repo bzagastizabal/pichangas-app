@@ -40,7 +40,7 @@ export async function generateMetadata({
   const admin = createAdminClient();
   const { data } = await admin
     .from('eventos')
-    .select('fecha_hora_evento, costo_por_participante, sedes(nombre)')
+    .select('id, fecha_hora_evento, costo_por_participante, cupos_totales, sedes(nombre)')
     .eq('slug_inscripcion', slug)
     .maybeSingle();
 
@@ -52,11 +52,21 @@ export async function generateMetadata({
     };
   }
 
+  // Cupos ocupados (pendiente + confirmado). Lista de espera no toma cupo.
+  const { count: ocupados } = await admin
+    .from('inscripciones')
+    .select('*', { count: 'exact', head: true })
+    .eq('evento_id', data.id)
+    .in('estado', ['pendiente', 'confirmado']);
+  const disponibles = Math.max(0, data.cupos_totales - (ocupados ?? 0));
+
   const sede = (data.sedes as { nombre?: string } | null)?.nombre ?? 'cancha';
   const fecha = formatearFechaLima(data.fecha_hora_evento);
   const costo = soles.format(Number(data.costo_por_participante));
+  const cuposTxt =
+    disponibles > 0 ? `${disponibles} de ${data.cupos_totales} cupos` : '¡AGOTADO!';
   const titulo = `Pichanga en ${sede} 🏀`;
-  const descripcion = `${fecha} · Costo ${costo}. Reserva tu cupo con el CMT BasketBall Club.`;
+  const descripcion = `${fecha} · ${costo} · ${cuposTxt}. Reserva con el CMT BasketBall Club.`;
   return {
     title: titulo,
     description: descripcion,
