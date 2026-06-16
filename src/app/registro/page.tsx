@@ -35,12 +35,22 @@ function RegistroForm() {
     setCargando(true);
     setMensaje('');
 
+    // El identificador para login (DNI o teléfono) tiene que tener al menos
+    // 6 dígitos para servir como password por defecto y como login.
+    const dniLimpio = dni.trim();
+    const telDigitos = telefono.replace(/\D/g, '');
+    if (!dniLimpio && telDigitos.length < 6) {
+      setCargando(false);
+      setMensaje('Ingresa DNI o teléfono — usamos uno de los dos para identificarte.');
+      return;
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         // El trigger lee estos datos para llenar el perfil (incl. dni).
-        data: { nombre_completo: nombre, telefono, dni },
+        data: { nombre_completo: nombre, telefono, dni: dniLimpio || null },
       },
     });
 
@@ -91,7 +101,7 @@ function RegistroForm() {
       <h1 className="text-2xl font-bold text-center">Crear cuenta</h1>
       <input className={campo} placeholder="Nombre completo"
         value={nombre} onChange={(e) => setNombre(e.target.value)} />
-      <input className={campo} placeholder="DNI"
+      <input className={campo} placeholder="DNI (o deja vacío si no tienes)"
         value={dni} onChange={(e) => setDni(e.target.value)} />
       <TelefonoInput onChange={setTelefono} />
       <label className="block text-xs text-tenue -mb-2">Fecha de nacimiento</label>
