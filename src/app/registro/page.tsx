@@ -39,14 +39,25 @@ function RegistroForm() {
     // 6 dígitos para servir como password por defecto y como login.
     const dniLimpio = dni.trim();
     const telDigitos = telefono.replace(/\D/g, '');
-    if (!dniLimpio && telDigitos.length < 6) {
+    const identificador = dniLimpio || telDigitos;
+    if (!identificador || identificador.length < 6) {
       setCargando(false);
       setMensaje('Ingresa DNI o teléfono — usamos uno de los dos para identificarte.');
       return;
     }
 
+    if (!password || password.length < 6) {
+      setCargando(false);
+      setMensaje('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    // Sin correo sintetizamos uno con el identificador; el login igual funciona
+    // con DNI o teléfono. Supabase requiere SIEMPRE un email para el alta.
+    const correoFinal = email.trim() || `${identificador}@jugador.cmt`;
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: correoFinal,
       password,
       options: {
         // El trigger lee estos datos para llenar el perfil (incl. dni).
@@ -109,7 +120,7 @@ function RegistroForm() {
         value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
       <label className="block text-xs text-tenue -mb-2">Nacionalidad</label>
       <NacionalidadInput defaultValue={nacionalidad} onChange={setNacionalidad} />
-      <input className={campo} type="email" placeholder="Correo"
+      <input className={campo} type="email" placeholder="Correo (opcional)"
         value={email} onChange={(e) => setEmail(e.target.value)} />
       <input className={campo} type="password" placeholder="Contraseña"
         value={password} onChange={(e) => setPassword(e.target.value)} />
