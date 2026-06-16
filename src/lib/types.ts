@@ -201,7 +201,7 @@ export type Inscripcion = {
   created_at: string;
 };
 
-export type MetodoPago = 'yape' | 'plin' | 'banco';
+export type MetodoPago = 'yape' | 'plin' | 'banco' | 'efectivo';
 export type EstadoPago = 'en_revision' | 'aprobado' | 'rechazado';
 
 export type Pago = {
