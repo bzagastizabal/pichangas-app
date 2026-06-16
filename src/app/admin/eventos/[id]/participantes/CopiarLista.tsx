@@ -81,6 +81,7 @@ export function CopiarLista({
   const [conPago, setConPago] = useState(true);
   const [conMapa, setConMapa] = useState(Boolean(sedeMapa));
   const [numerar, setNumerar] = useState(true);
+  const [mostrarVacios, setMostrarVacios] = useState(true);
   const [copiado, setCopiado] = useState(false);
 
   const texto = useMemo(() => {
@@ -96,12 +97,20 @@ export function CopiarLista({
     );
     lineas.push('');
     lineas.push(`Lista (${items.length}/${cuposTotales}):`);
-    items.forEach((j, i) => {
+    // Cuando hay que mostrar los vacíos, iteramos hasta cuposTotales y
+    // rellenamos con "—". Si no, solo iteramos los inscritos.
+    const filas = mostrarVacios ? cuposTotales : items.length;
+    for (let i = 0; i < filas; i++) {
+      const j = items[i];
       const prefijo = numerar ? `${i + 1}.` : '-';
-      const pago = conPago ? `${EMOJI_PAGO[j.estado]} ` : '';
-      const tel = conTel && j.telefono ? ` · ${j.telefono}` : '';
-      lineas.push(`${prefijo} ${pago}${j.nombre}${tel}`);
-    });
+      if (j) {
+        const pago = conPago ? `${EMOJI_PAGO[j.estado]} ` : '';
+        const tel = conTel && j.telefono ? ` · ${j.telefono}` : '';
+        lineas.push(`${prefijo} ${pago}${j.nombre}${tel}`);
+      } else {
+        lineas.push(`${prefijo} —`);
+      }
+    }
     return lineas.join('\n');
   }, [
     titulo,
@@ -119,6 +128,7 @@ export function CopiarLista({
     conTel,
     conPago,
     numerar,
+    mostrarVacios,
   ]);
 
   async function copiar() {
@@ -190,6 +200,14 @@ export function CopiarLista({
             onChange={(e) => setNumerar(e.target.checked)}
           />
           Numerar lista
+        </label>
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={mostrarVacios}
+            onChange={(e) => setMostrarVacios(e.target.checked)}
+          />
+          Mostrar cupos vacíos
         </label>
       </div>
 
