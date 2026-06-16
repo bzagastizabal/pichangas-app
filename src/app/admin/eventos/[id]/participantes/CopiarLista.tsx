@@ -62,7 +62,7 @@ export function CopiarLista({
   costo,
   cuposTotales,
   cuposDisponibles,
-  minimoRequerido,
+  inscribirUrl,
   items,
 }: {
   titulo: string;
@@ -74,7 +74,7 @@ export function CopiarLista({
   costo: number;
   cuposTotales: number;
   cuposDisponibles: number;
-  minimoRequerido: number;
+  inscribirUrl: string;
   items: Item[];
 }) {
   const [conTel, setConTel] = useState(true);
@@ -92,9 +92,8 @@ export function CopiarLista({
     lineas.push(`🗓️ ${fmtFecha(fechaIso)}`);
     lineas.push(`🕛 ${rangoHorario(fechaIso, duracionHoras)}`);
     lineas.push(`🤑 S/${costo} por jugador`);
-    lineas.push(
-      `${cuposDisponibles} cupos disponibles (mínimo ${minimoRequerido})`,
-    );
+    lineas.push(`${cuposDisponibles} cupos disponibles`);
+    lineas.push(`👉 Inscríbete: ${inscribirUrl}`);
     lineas.push('');
     lineas.push(`Lista (${items.length}/${cuposTotales}):`);
     // Cuando hay que mostrar los vacíos, iteramos hasta cuposTotales y
@@ -123,7 +122,7 @@ export function CopiarLista({
     costo,
     cuposDisponibles,
     cuposTotales,
-    minimoRequerido,
+    inscribirUrl,
     items,
     conTel,
     conPago,

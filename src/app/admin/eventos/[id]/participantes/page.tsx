@@ -42,6 +42,7 @@ type Evento = {
   costo_por_participante: number;
   cupos_totales: number;
   minimo_requerido: number;
+  slug_inscripcion: string;
   categoria_id: string | null;
   sedes: { nombre: string; direccion: string | null; geolocalizacion: string | null } | null;
   categorias: { nombre: string } | null;
@@ -59,7 +60,7 @@ export default async function ParticipantesPage({
   const { data: ev } = await supabase
     .from('eventos')
     .select(
-      'id, tipo, fecha_hora_evento, duracion_horas, costo_por_participante, cupos_totales, minimo_requerido, categoria_id, sedes(nombre, direccion, geolocalizacion), categorias(nombre)',
+      'id, tipo, fecha_hora_evento, duracion_horas, costo_por_participante, cupos_totales, minimo_requerido, slug_inscripcion, categoria_id, sedes(nombre, direccion, geolocalizacion), categorias(nombre)',
     )
     .eq('id', id)
     .maybeSingle();
@@ -147,7 +148,7 @@ export default async function ParticipantesPage({
         costo={evento.costo_por_participante}
         cuposTotales={evento.cupos_totales}
         cuposDisponibles={cuposDisponibles}
-        minimoRequerido={evento.minimo_requerido}
+        inscribirUrl={`${base}/inscribir/${evento.slug_inscripcion}`}
         items={itemsCopia}
       />
 
