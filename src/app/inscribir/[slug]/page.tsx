@@ -240,10 +240,14 @@ function EstadoInscripcionVista({
 
   if (inscripcion) {
     if (inscripcion.estado === 'confirmado') {
-      // Solo decimos "tu pago fue aprobado" si REALMENTE hay un pago aprobado.
-      // Cuando el admin inscribe a alguien manualmente queda confirmado sin un
-      // pago (p. ej. pagó en efectivo) y el mensaje genérico es más honesto.
+      // Tres caminos posibles cuando el cupo está confirmado:
+      //  · pago aprobado → mensaje celebratorio
+      //  · pago en revisión → confirmamos cupo pero avisamos del comprobante
+      //  · sin pago aprobado (admin confirmó sin yape o comprobante rechazado)
+      //    → mostramos destino de pago + form para que el jugador pueda yapear
       const pagoAprobado = pago?.estado === 'aprobado';
+      const pagoEnRevision = pago?.estado === 'en_revision';
+      const necesitaPagar = !pagoAprobado && !pagoEnRevision;
       return (
         <div className="space-y-3">
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-center">
@@ -254,13 +258,36 @@ function EstadoInscripcionVista({
               height={1500}
               className="h-28 w-auto mx-auto mb-2"
             />
-            <p className="font-medium text-blue-800">🎉 Inscripción confirmada.</p>
+            <p className="font-medium text-blue-800">🎉 Tu cupo está confirmado.</p>
             <p className="text-blue-700">
               {pagoAprobado
                 ? 'Tu pago fue aprobado. ¡Nos vemos en la cancha!'
-                : '¡Nos vemos en la cancha!'}
+                : pagoEnRevision
+                  ? 'El staff te confirmó el cupo y tu comprobante está en revisión.'
+                  : 'El staff te dio el cupo. Si todavía no has pagado, abajo te dejamos el detalle para que lo hagas.'}
             </p>
           </div>
+
+          {necesitaPagar && (
+            <>
+              {pago?.estado === 'rechazado' && (
+                <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  Tu comprobante anterior fue rechazado
+                  {pago.motivo_rechazo ? `: ${pago.motivo_rechazo}` : ''}. Sube uno nuevo.
+                </p>
+              )}
+              <DestinoPago
+                titular={evento.pago_titular ?? null}
+                telefono={evento.pago_telefono ?? null}
+                monto={evento.costo_por_participante}
+              />
+              <FormComprobante
+                inscripcionId={inscripcion.id}
+                montoSugerido={evento.costo_por_participante}
+              />
+            </>
+          )}
+
           {botonCalendario}
         </div>
       );
