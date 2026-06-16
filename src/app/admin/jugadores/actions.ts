@@ -22,21 +22,43 @@ export async function crearJugador(
   const passRaw = (formData.get('password') as string | null)?.trim() ?? '';
 
   if (!nombre) return { error: 'El nombre es obligatorio.' };
-  if (!dni) return { error: 'El DNI es obligatorio.' };
 
-  // Sin correo: sintetizamos uno a partir del DNI (login será por DNI).
-  const email = emailRaw || `${dni}@jugador.cmt`;
+  // Identificador: DNI si está; si no, el teléfono (mín 6 dígitos). Necesario
+  // para login con identificador no-correo.
+  const telDigitos = telefono.replace(/\D/g, '');
+  const identificador = dni || telDigitos;
+  if (!identificador || identificador.length < 6) {
+    return {
+      error:
+        'Debes ingresar DNI o teléfono (mínimo 6 dígitos) para identificar al jugador.',
+    };
+  }
+
+  // Email sintetizado a partir del identificador disponible.
+  const email = emailRaw || `${identificador}@jugador.cmt`;
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { error: 'El correo no es válido.' };
   }
-  const password = passRaw || dni;
+  const password = passRaw || identificador;
   if (password.length < 6) {
-    return { error: 'La clave (o el DNI) debe tener al menos 6 caracteres.' };
+    return { error: 'La clave debe tener al menos 6 caracteres.' };
   }
 
   const admin = createAdminClient();
-  const { data: dup } = await admin.from('perfiles').select('id').eq('dni', dni).maybeSingle();
-  if (dup) return { error: `Ya existe un jugador con DNI ${dni}.` };
+  if (dni) {
+    const { data: dup } = await admin.from('perfiles').select('id').eq('dni', dni).maybeSingle();
+    if (dup) return { error: `Ya existe un jugador con DNI ${dni}.` };
+  } else {
+    // Sin DNI usamos teléfono como identificador único.
+    const { data: dup } = await admin
+      .from('perfiles')
+      .select('id')
+      .eq('telefono', telDigitos)
+      .maybeSingle();
+    if (dup) {
+      return { error: `Ya existe un jugador con el teléfono ${telDigitos}.` };
+    }
+  }
 
   const { data: created, error } = await admin.auth.admin.createUser({
     email,
@@ -118,22 +140,38 @@ export async function guardarJugador(formData: FormData): Promise<void> {
   redirect('/admin/jugadores');
 }
 
-// Reinicia la contraseña del jugador a su DNI (clave por defecto).
+// Reinicia la contraseña del jugador a su identificador (DNI si tiene,
+// teléfono en caso contrario).
 export async function reiniciarPassword(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = formData.get('id') as string;
   if (!id) return;
   const admin = createAdminClient();
-  const { data } = await admin.from('perfiles').select('dni').eq('id', id).maybeSingle();
+  const { data } = await admin
+    .from('perfiles')
+    .select('dni, telefono')
+    .eq('id', id)
+    .maybeSingle();
   const dni = (data?.dni ?? '').trim();
-  if (dni.length < 6) {
+  const telDigitos = (data?.telefono ?? '').replace(/\D/g, '');
+  const identificador = dni || telDigitos;
+  if (identificador.length < 6) {
     redirect(
       '/admin/jugadores?error=' +
-        encodeURIComponent('El jugador no tiene un DNI válido (mín. 6 caracteres) para usar como clave.'),
+        encodeURIComponent(
+          'El jugador no tiene DNI ni teléfono válidos (mín. 6 caracteres) para usar como clave.',
+        ),
     );
   }
-  await admin.auth.admin.updateUserById(id, { password: dni });
-  redirect('/admin/jugadores?ok=' + encodeURIComponent('Contraseña reiniciada al DNI del jugador.'));
+  await admin.auth.admin.updateUserById(id, { password: identificador });
+  redirect(
+    '/admin/jugadores?ok=' +
+      encodeURIComponent(
+        dni
+          ? 'Contraseña reiniciada al DNI del jugador.'
+          : 'Contraseña reiniciada al teléfono del jugador.',
+      ),
+  );
 }
 
 // Da de baja / reactiva al jugador.

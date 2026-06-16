@@ -27,8 +27,8 @@ export function JugadorForm() {
           <input name="nombre_completo" className={input} required />
         </div>
         <div>
-          <label className="block text-xs text-tenue mb-1">DNI *</label>
-          <input name="dni" className={input} required />
+          <label className="block text-xs text-tenue mb-1">DNI (o teléfono)</label>
+          <input name="dni" className={input} />
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">Teléfono</label>
@@ -48,7 +48,7 @@ export function JugadorForm() {
         </div>
         <div>
           <label className="block text-xs text-tenue mb-1">Clave (opcional)</label>
-          <input name="password" className={input} placeholder="por defecto: el DNI" />
+          <input name="password" className={input} placeholder="por defecto: DNI o teléfono" />
         </div>
         <div className="flex items-end sm:col-span-2">
           <button
