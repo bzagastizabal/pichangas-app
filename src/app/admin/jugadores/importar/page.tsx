@@ -14,10 +14,10 @@ export default function ImportarJugadoresPage() {
         </Link>
         <h1 className="text-2xl font-bold">Importar jugadores (CSV)</h1>
         <p className="text-sm text-tenue">
-          La clave es el <strong>DNI</strong>. Si el DNI existe se{' '}
-          <strong>actualiza</strong> el perfil; si no, se{' '}
-          <strong>crea</strong> el usuario (contraseña inicial = DNI) y se rellena
-          su perfil.
+          La clave es el <strong>DNI</strong>; si no, el{' '}
+          <strong>teléfono</strong> (normalizado a dígitos). Si el identificador existe
+          se <strong>actualiza</strong> el perfil; si no, se <strong>crea</strong> el
+          usuario (contraseña inicial = el mismo identificador) y se rellena el perfil.
         </p>
       </div>
 
@@ -25,10 +25,10 @@ export default function ImportarJugadoresPage() {
         <p className="font-medium">Columnas reconocidas (case-insensitive, sin acentos):</p>
         <ul className="space-y-1 text-tenue">
           <li>· <code>Nombre completo</code> (o <code>Nombre</code>) — obligatorio</li>
-          <li>· <code>DNI</code> (o <code>Documento</code>) — obligatorio, clave única</li>
+          <li>· <code>DNI</code> (o <code>Documento</code>) — clave única; opcional si hay teléfono</li>
+          <li>· <code>Telefono</code> (o <code>Celular</code>, <code>WhatsApp</code>) — con código de país; usado como clave cuando no hay DNI</li>
           <li>· <code>Fecha de nacimiento</code> — ISO (1990-05-15) o DD/MM/YYYY</li>
           <li>· <code>Nacionalidad</code> (o <code>Pais</code>)</li>
-          <li>· <code>Telefono</code> (o <code>Celular</code>, <code>WhatsApp</code>) — con código de país</li>
           <li>· <code>Email</code> (o <code>Correo</code>) — opcional, se sintetiza <code>dni@jugador.cmt</code> si no viene</li>
           <li>· <code>Estado</code> — <code>activo</code> / <code>de baja</code> (opcional)</li>
         </ul>

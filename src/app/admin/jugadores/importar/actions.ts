@@ -79,9 +79,13 @@ export async function importarJugadoresCSV(
 
   const headers = filas[0].map(normalizarHeader);
   const indices: (keyof Fila | null)[] = headers.map((h) => MAPA[h] ?? null);
-  const idxDni = indices.findIndex((c) => c === 'dni');
-  if (idxDni < 0) {
-    return { error: 'La columna "DNI" es obligatoria. Renómbrala en tu archivo y vuelve a subir.' };
+  const tieneDni = indices.some((c) => c === 'dni');
+  const tieneTel = indices.some((c) => c === 'telefono');
+  if (!tieneDni && !tieneTel) {
+    return {
+      error:
+        'Necesitas al menos una columna "DNI" o "Teléfono" para identificar a cada jugador.',
+    };
   }
 
   // Construye filas tipadas a partir del CSV.
@@ -110,10 +114,18 @@ export async function importarJugadoresCSV(
     datos.push({ fila: f, linea: r + 1 });
   }
 
-  // Pre-detecta los DNIs que ya existen para no consultar uno por uno.
+  // Pre-detecta los identificadores que ya existen (DNI y teléfono).
   const admin = createAdminClient();
   const dnis = Array.from(new Set(datos.map((d) => d.fila.dni).filter(Boolean)));
+  const tels = Array.from(
+    new Set(
+      datos
+        .map((d) => (d.fila.telefono ?? '').replace(/\D/g, ''))
+        .filter((t) => t.length >= 6),
+    ),
+  );
   const existePorDni = new Map<string, string>();
+  const existePorTel = new Map<string, string>();
   if (dnis.length > 0) {
     const { data: existentes } = await admin
       .from('perfiles')
@@ -121,6 +133,15 @@ export async function importarJugadoresCSV(
       .in('dni', dnis);
     for (const p of (existentes as { id: string; dni: string | null }[] | null) ?? []) {
       if (p.dni) existePorDni.set(p.dni, p.id);
+    }
+  }
+  if (tels.length > 0) {
+    const { data: existentes } = await admin
+      .from('perfiles')
+      .select('id, telefono')
+      .in('telefono', tels);
+    for (const p of (existentes as { id: string; telefono: string | null }[] | null) ?? []) {
+      if (p.telefono) existePorTel.set(p.telefono, p.id);
     }
   }
 
@@ -131,27 +152,36 @@ export async function importarJugadoresCSV(
 
   for (const { fila, linea } of datos) {
     const dni = fila.dni;
-    if (!dni) {
-      errores.push({ linea, dni: '', motivo: 'Falta DNI' });
+    const telDigitos = (fila.telefono ?? '').replace(/\D/g, '');
+    // Identificador: DNI si está, sino teléfono normalizado.
+    const identificador = dni || telDigitos;
+    if (!identificador) {
+      errores.push({ linea, dni: '', motivo: 'Falta DNI o teléfono' });
       continue;
     }
-    if (dni.length < 6) {
-      errores.push({ linea, dni, motivo: 'DNI menor a 6 caracteres' });
+    if (identificador.length < 6) {
+      errores.push({ linea, dni: identificador, motivo: 'DNI/teléfono < 6 caracteres' });
       continue;
     }
     if (!fila.nombre_completo) {
-      errores.push({ linea, dni, motivo: 'Falta nombre completo' });
+      errores.push({ linea, dni: identificador, motivo: 'Falta nombre completo' });
       continue;
     }
-    if (vistosEnArchivo.has(dni)) {
-      errores.push({ linea, dni, motivo: 'DNI duplicado en el archivo' });
+    if (vistosEnArchivo.has(identificador)) {
+      errores.push({
+        linea,
+        dni: identificador,
+        motivo: 'Identificador duplicado en el archivo',
+      });
       continue;
     }
-    vistosEnArchivo.add(dni);
+    vistosEnArchivo.add(identificador);
 
-    const idExistente = existePorDni.get(dni);
+    // Busca existencia primero por DNI, luego por teléfono.
+    const idExistente =
+      (dni ? existePorDni.get(dni) : undefined) ??
+      (telDigitos ? existePorTel.get(telDigitos) : undefined);
 
-    // Dry run: cuenta como si fuera real pero no escribe.
     if (dryRun) {
       if (idExistente) actualizados++;
       else creados++;
@@ -163,6 +193,7 @@ export async function importarJugadoresCSV(
         nombre_completo: fila.nombre_completo,
       };
       if (fila.telefono !== null) updates.telefono = fila.telefono;
+      if (dni) updates.dni = dni; // permite rellenar DNI faltante en perfil existente
       if (fila.fecha_nacimiento !== null) updates.fecha_nacimiento = fila.fecha_nacimiento;
       if (fila.nacionalidad !== null) updates.nacionalidad = fila.nacionalidad;
       if (fila.estado !== null) updates.activo = fila.estado;
@@ -170,29 +201,28 @@ export async function importarJugadoresCSV(
         .from('perfiles')
         .update(updates)
         .eq('id', idExistente);
-      if (error) {
-        errores.push({ linea, dni, motivo: error.message });
-      } else {
-        actualizados++;
-      }
+      if (error) errores.push({ linea, dni: identificador, motivo: error.message });
+      else actualizados++;
     } else {
-      const email = fila.email || `${dni}@jugador.cmt`;
+      const email = fila.email || `${identificador}@jugador.cmt`;
       const { data: nuevo, error } = await admin.auth.admin.createUser({
         email,
         email_confirm: true,
-        password: dni,
+        password: identificador,
         user_metadata: {
           nombre_completo: fila.nombre_completo,
           telefono: fila.telefono ?? '',
-          dni,
+          dni: dni || null,
         },
       });
       if (error || !nuevo?.user?.id) {
-        errores.push({ linea, dni, motivo: error?.message ?? 'no se pudo crear el usuario' });
+        errores.push({
+          linea,
+          dni: identificador,
+          motivo: error?.message ?? 'no se pudo crear el usuario',
+        });
         continue;
       }
-      // Completa fecha_nacimiento / nacionalidad / estado en el perfil recién
-      // creado (el trigger los deja nulos).
       const upd: Record<string, unknown> = {};
       if (fila.fecha_nacimiento) upd.fecha_nacimiento = fila.fecha_nacimiento;
       if (fila.nacionalidad) upd.nacionalidad = fila.nacionalidad;
