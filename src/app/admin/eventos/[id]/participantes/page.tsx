@@ -2,12 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { baseUrl } from '@/lib/url';
-import type { EstadoInscripcion, EstadoPago } from '@/lib/types';
+import type { EstadoInscripcion, EstadoPago, TipoEvento } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
 import { estadoPagoJugador, type EstadoPagoJugador } from '@/lib/estado-pago';
 import { firmarTokenPago } from '@/lib/token-pago';
 import { agregarParticipante } from './actions';
 import { AccionesParticipante } from './AccionesParticipante';
+import { CopiarLista } from './CopiarLista';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
@@ -35,12 +36,14 @@ type Inscrito = {
 
 type Evento = {
   id: string;
+  tipo: TipoEvento;
   fecha_hora_evento: string;
   duracion_horas: number;
   costo_por_participante: number;
   cupos_totales: number;
+  minimo_requerido: number;
   categoria_id: string | null;
-  sedes: { nombre: string } | null;
+  sedes: { nombre: string; direccion: string | null; geolocalizacion: string | null } | null;
   categorias: { nombre: string } | null;
 };
 
@@ -55,7 +58,9 @@ export default async function ParticipantesPage({
 
   const { data: ev } = await supabase
     .from('eventos')
-    .select('id, fecha_hora_evento, duracion_horas, costo_por_participante, cupos_totales, categoria_id, sedes(nombre), categorias(nombre)')
+    .select(
+      'id, tipo, fecha_hora_evento, duracion_horas, costo_por_participante, cupos_totales, minimo_requerido, categoria_id, sedes(nombre, direccion, geolocalizacion), categorias(nombre)',
+    )
     .eq('id', id)
     .maybeSingle();
   if (!ev) notFound();
@@ -93,6 +98,27 @@ export default async function ParticipantesPage({
     estadoPagoJugador(i.estado, i.pagos, evento.fecha_hora_evento, evento.duracion_horas);
   const morosos = inscritos.filter((i) => estadoDe(i) === 'moroso').length;
 
+  // Para el mensaje de WhatsApp: titulo legible, items y cupos.
+  const tituloEvento =
+    evento.tipo === 'torneo'
+      ? `Convocatoria de torneo${evento.categorias?.nombre ? ` (${evento.categorias.nombre})` : ''}`
+      : evento.tipo === 'amistoso'
+        ? `Amistoso en ${evento.sedes?.nombre ?? 'la cancha'}`
+        : `Pichanga en ${evento.sedes?.nombre ?? 'la cancha'}`;
+  const ocupados = inscritos.filter(
+    (i) => i.estado === 'pendiente' || i.estado === 'confirmado',
+  ).length;
+  const cuposDisponibles = Math.max(0, evento.cupos_totales - ocupados);
+  // Solo los que tienen cupo (pendiente/confirmado) entran a la lista
+  // copiada — los de lista de espera o expirados se omiten.
+  const itemsCopia = inscritos
+    .filter((i) => i.estado === 'pendiente' || i.estado === 'confirmado')
+    .map((i) => ({
+      nombre: i.perfiles?.nombre_completo ?? 'Jugador',
+      telefono: i.perfiles?.telefono ?? null,
+      estado: estadoDe(i),
+    }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -110,6 +136,20 @@ export default async function ParticipantesPage({
           {evento.categorias?.nombre ? ` · categoría ${evento.categorias.nombre}` : ''}
         </p>
       </div>
+
+      <CopiarLista
+        titulo={tituloEvento}
+        sedeNombre={evento.sedes?.nombre ?? 'Cancha'}
+        sedeDireccion={evento.sedes?.direccion ?? null}
+        sedeMapa={evento.sedes?.geolocalizacion ?? null}
+        fechaIso={evento.fecha_hora_evento}
+        duracionHoras={evento.duracion_horas}
+        costo={evento.costo_por_participante}
+        cuposTotales={evento.cupos_totales}
+        cuposDisponibles={cuposDisponibles}
+        minimoRequerido={evento.minimo_requerido}
+        items={itemsCopia}
+      />
 
       <form action={agregarParticipante} className="flex flex-wrap items-center gap-2 rounded-lg border border-borde p-4">
         <input type="hidden" name="evento_id" value={evento.id} />
