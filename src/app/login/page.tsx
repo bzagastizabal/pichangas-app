@@ -28,13 +28,13 @@ function LoginForm() {
     setCargando(true);
     setMensaje('');
 
-    // Permite entrar con correo o con DNI (resuelve el correo en el servidor).
+    // Permite entrar con correo, DNI o teléfono (resuelve el correo en el server).
     let correo = usuario.trim();
     if (!correo.includes('@')) {
       const e = await emailPorDni(correo);
       if (!e) {
         setCargando(false);
-        setMensaje('No se encontró ese DNI.');
+        setMensaje('No se encontró ese DNI ni teléfono.');
         return;
       }
       correo = e;
@@ -56,7 +56,7 @@ function LoginForm() {
       <Image src="/cmt_logo.png" alt="CMT BasketBall Club" width={900} height={1000} priority className="h-20 w-auto mx-auto" />
       <MarcaClub />
       <h1 className="text-2xl font-bold text-center">Iniciar sesión</h1>
-      <input className={campo} type="text" placeholder="Correo o DNI"
+      <input className={campo} type="text" placeholder="Correo, DNI o teléfono"
         value={usuario} onChange={(e) => setUsuario(e.target.value)} />
       <input className={campo} type="password" placeholder="Contraseña"
         value={password} onChange={(e) => setPassword(e.target.value)} />
