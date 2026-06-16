@@ -5,6 +5,7 @@ import { aprobarPago } from '@/app/admin/pagos/actions';
 import { CompartirEnlace } from '@/app/admin/CompartirEnlace';
 import { quitarParticipante } from './actions';
 import { FormPagoAdmin } from './FormPagoAdmin';
+import { FormAprobarManual } from './FormAprobarManual';
 
 const btn = 'text-xs rounded border border-borde px-2 py-1 hover:border-orange-500';
 
@@ -31,6 +32,7 @@ export function AccionesParticipante({
 }) {
   const [menu, setMenu] = useState(false);
   const [modal, setModal] = useState(false);
+  const [modalManual, setModalManual] = useState(false);
 
   return (
     <div className="flex items-center justify-end gap-2">
@@ -44,9 +46,19 @@ export function AccionesParticipante({
       )}
 
       {!tienePagoVivo && (
-        <button type="button" className={btn} onClick={() => setModal(true)}>
-          Subir pago
-        </button>
+        <>
+          <button type="button" className={btn} onClick={() => setModal(true)}>
+            Subir pago
+          </button>
+          <button
+            type="button"
+            className="text-xs rounded border border-green-500/40 text-green-300 px-2 py-1 hover:border-green-400"
+            onClick={() => setModalManual(true)}
+            title="Aprobar sin captura (pago en efectivo, etc.)"
+          >
+            Marcar pagado
+          </button>
+        </>
       )}
 
       <div className="relative">
@@ -93,6 +105,24 @@ export function AccionesParticipante({
             <FormPagoAdmin
               inscripcionId={inscripcionId}
               usuarioId={usuarioId}
+              montoSugerido={montoSugerido}
+            />
+          </div>
+        </div>
+      )}
+
+      {modalManual && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setModalManual(false)} />
+          <div className="relative z-50 w-full max-w-md space-y-3 rounded-xl border border-borde bg-tarjeta p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Marcar como pagado: {nombre}</h3>
+              <button type="button" onClick={() => setModalManual(false)} aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+            <FormAprobarManual
+              inscripcionId={inscripcionId}
               montoSugerido={montoSugerido}
             />
           </div>

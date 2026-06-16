@@ -24,6 +24,7 @@ export function FormPagoAdmin({
         <option value="yape">Yape</option>
         <option value="plin">Plin</option>
         <option value="banco">Banco</option>
+        <option value="efectivo">Efectivo</option>
       </select>
       <input
         name="monto_declarado"

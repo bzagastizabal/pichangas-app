@@ -3,7 +3,9 @@
 import { refresh } from 'next/cache';
 import { requireAdmin } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { EstadoForm } from '@/lib/types';
+import type { EstadoForm, MetodoPago } from '@/lib/types';
+
+const METODOS_PAGO: MetodoPago[] = ['yape', 'plin', 'banco', 'efectivo'];
 
 // Inscribe un jugador (lo agrega como participante 'confirmado': juega; el pago
 // se rastrea aparte y, si no paga, sale como moroso). Idempotente.
@@ -56,7 +58,7 @@ export async function subirComprobanteAdmin(
   const archivo = formData.get('comprobante') as File | null;
 
   if (!inscripcionId || !usuarioId) return { error: 'Falta la inscripción.' };
-  if (!['yape', 'plin', 'banco'].includes(metodo)) return { error: 'Método inválido.' };
+  if (!METODOS_PAGO.includes(metodo as MetodoPago)) return { error: 'Método inválido.' };
   if (Number.isNaN(monto) || monto <= 0) return { error: 'Monto inválido.' };
   if (!archivo || archivo.size === 0) return { error: 'Adjunta el comprobante.' };
   if (!MIMES_OK.includes(archivo.type)) return { error: 'Imagen (jpg/png/webp) o PDF.' };
@@ -81,6 +83,46 @@ export async function subirComprobanteAdmin(
     await admin.storage.from('comprobantes').remove([ruta]);
     return { error: 'No se pudo registrar el pago: ' + errPago.message };
   }
+
+  refresh();
+  return {};
+}
+
+// Admin aprueba un pago SIN captura (caso típico: pago en efectivo o pago ya
+// verificado por otra vía). Inserta un pago con url_comprobante = NULL y
+// llama a la RPC aprobar_pago para que se confirme la inscripción y se
+// dispare la lógica de desplazamientos / notificaciones igual que con un
+// pago normal.
+export async function aprobarPagoManual(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  await requireAdmin();
+  const inscripcionId = formData.get('inscripcion_id') as string;
+  const metodo = formData.get('metodo') as string;
+  const monto = Number(formData.get('monto_declarado'));
+
+  if (!inscripcionId) return { error: 'Falta la inscripción.' };
+  if (!METODOS_PAGO.includes(metodo as MetodoPago)) return { error: 'Método inválido.' };
+  if (!Number.isFinite(monto) || monto <= 0) return { error: 'Monto inválido.' };
+
+  const admin = createAdminClient();
+  const { data: pago, error: errInsert } = await admin
+    .from('pagos')
+    .insert({
+      inscripcion_id: inscripcionId,
+      url_comprobante: null,
+      metodo,
+      monto_declarado: monto,
+    })
+    .select('id')
+    .single();
+  if (errInsert || !pago) {
+    return { error: 'No se pudo registrar el pago: ' + (errInsert?.message ?? '') };
+  }
+
+  const { error: errRpc } = await admin.rpc('aprobar_pago', { p_pago_id: pago.id });
+  if (errRpc) return { error: 'No se pudo aprobar: ' + errRpc.message };
 
   refresh();
   return {};
