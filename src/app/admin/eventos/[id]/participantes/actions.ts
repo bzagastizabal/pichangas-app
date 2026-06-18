@@ -8,8 +8,10 @@ import type { EstadoForm, MetodoPago } from '@/lib/types';
 
 const METODOS_PAGO: MetodoPago[] = ['yape', 'plin', 'banco', 'efectivo'];
 
-// Inscribe un jugador (lo agrega como participante 'confirmado': juega; el pago
-// se rastrea aparte y, si no paga, sale como moroso). Idempotente.
+// Inscribe un jugador. Si hay cupo lo agrega como 'confirmado' (juega; el pago
+// se rastrea aparte y, si no paga, sale como moroso). Si los cupos están llenos
+// (pendiente + confirmado >= cupos_totales) entra como 'lista_espera' con su
+// posición — aparece como suplente en el mensaje de WhatsApp. Idempotente.
 export async function agregarParticipante(formData: FormData): Promise<void> {
   await requireAdmin();
   const eventoId = formData.get('evento_id') as string;
@@ -17,6 +19,8 @@ export async function agregarParticipante(formData: FormData): Promise<void> {
   if (!eventoId || !usuarioId) return;
 
   const admin = createAdminClient();
+
+  // No duplicamos si ya tiene inscripción viva.
   const { data: existente } = await admin
     .from('inscripciones')
     .select('id')
@@ -24,11 +28,50 @@ export async function agregarParticipante(formData: FormData): Promise<void> {
     .eq('usuario_id', usuarioId)
     .in('estado', ['pendiente', 'confirmado', 'lista_espera'])
     .maybeSingle();
-  if (!existente) {
-    await admin
-      .from('inscripciones')
-      .insert({ evento_id: eventoId, usuario_id: usuarioId, estado: 'confirmado' });
+  if (existente) {
+    refresh();
+    return;
   }
+
+  // ¿Hay cupo? (ocupan cupo solo pendiente + confirmado, no lista_espera).
+  const { data: evento } = await admin
+    .from('eventos')
+    .select('cupos_totales')
+    .eq('id', eventoId)
+    .maybeSingle();
+  if (!evento) {
+    refresh();
+    return;
+  }
+  const { count: ocupados } = await admin
+    .from('inscripciones')
+    .select('*', { count: 'exact', head: true })
+    .eq('evento_id', eventoId)
+    .in('estado', ['pendiente', 'confirmado']);
+  const hayCupo = (ocupados ?? 0) < evento.cupos_totales;
+
+  // Posición de lista de espera: max actual + 1 (deja la cola ordenada para
+  // que aparezcan en orden de llegada en el mensaje de WhatsApp).
+  let posicion_lista: number | null = null;
+  if (!hayCupo) {
+    const { data: ult } = await admin
+      .from('inscripciones')
+      .select('posicion_lista')
+      .eq('evento_id', eventoId)
+      .eq('estado', 'lista_espera')
+      .order('posicion_lista', { ascending: false, nullsFirst: false })
+      .limit(1);
+    const max =
+      (ult as { posicion_lista: number | null }[] | null)?.[0]?.posicion_lista ?? 0;
+    posicion_lista = max + 1;
+  }
+
+  await admin.from('inscripciones').insert({
+    evento_id: eventoId,
+    usuario_id: usuarioId,
+    estado: hayCupo ? 'confirmado' : 'lista_espera',
+    posicion_lista,
+  });
   refresh();
 }
 
