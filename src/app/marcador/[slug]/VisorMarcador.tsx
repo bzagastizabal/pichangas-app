@@ -61,24 +61,31 @@ function PanelEquipo({
 
   return (
     <div
-      className={`relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl bg-gradient-to-b from-white/[0.035] to-white/[0.005] ring-1 ring-white/10 p-4 sm:p-6 lg:p-8 backdrop-blur-sm`}
+      className="relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl bg-gradient-to-b from-white/[0.035] to-white/[0.005] ring-1 ring-white/10 backdrop-blur-sm"
+      style={{ padding: 'clamp(0.75rem, 2vmin, 3rem)' }}
     >
       {/* Indicador de acento + nombre — más prominente para identificar al equipo */}
-      <div className="flex items-center gap-3 max-w-full">
-        <span className={`h-4 w-4 rounded-full ${acento.punto}`} aria-hidden />
+      <div className="flex items-center gap-[1.2vmin] max-w-full">
+        <span
+          className={`rounded-full ${acento.punto}`}
+          style={{ width: 'clamp(0.6rem, 1.4vmin, 1.5rem)', height: 'clamp(0.6rem, 1.4vmin, 1.5rem)' }}
+          aria-hidden
+        />
         <p
           className="uppercase tracking-[0.18em] font-bold text-white truncate"
-          style={{ fontSize: 'clamp(1.5rem, 4.2vw, 3.75rem)' }}
+          style={{ fontSize: 'clamp(1.1rem, 5vmin, 7rem)' }}
         >
           {nombre}
         </p>
       </div>
 
-      {/* Puntaje gigante */}
+      {/* Puntaje gigante: usa vmin para escalar con la dimensión más chica
+          (ideal cuando el visor se proyecta en TV horizontal o portrait phone). */}
       <p
-        className={`font-orbitron font-black tabular-nums leading-none mt-3 sm:mt-5 ${flash ? 'animate-flash-score' : ''}`}
+        className={`font-orbitron font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
         style={{
-          fontSize: 'clamp(7rem, 26vw, 22rem)',
+          fontSize: 'clamp(5rem, 32vmin, 40rem)',
+          marginTop: 'clamp(0.5rem, 1.5vmin, 2rem)',
           color: '#ffffff',
           textShadow: acento.glow,
           letterSpacing: '-0.02em',
@@ -88,7 +95,10 @@ function PanelEquipo({
       </p>
 
       {/* Faltas + Timeouts */}
-      <div className="mt-3 sm:mt-5 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+      <div
+        className="flex flex-wrap items-center justify-center gap-2 sm:gap-3"
+        style={{ marginTop: 'clamp(0.5rem, 1.5vmin, 2rem)' }}
+      >
         <span
           className={`inline-flex items-center gap-2 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 ring-1 backdrop-blur ${
             bonus
@@ -123,14 +133,23 @@ function ShotClock({ ms }: { ms: number }) {
   const segundos = Math.max(0, Math.ceil(ms / 1000));
   const peligro = ms < 5000;
   return (
-    <div className="flex flex-col items-center justify-center px-2 sm:px-4 self-center">
-      <p className="text-zinc-500 text-[0.6rem] sm:text-xs uppercase tracking-[0.4em] mb-1">
+    <div
+      className="flex flex-col items-center justify-center self-center"
+      style={{ padding: 'clamp(0.5rem, 1.5vmin, 1.5rem)' }}
+    >
+      <p
+        className="text-zinc-500 uppercase tracking-[0.4em]"
+        style={{
+          fontSize: 'clamp(0.55rem, 1.1vmin, 1rem)',
+          marginBottom: 'clamp(0.25rem, 0.6vmin, 0.6rem)',
+        }}
+      >
         Shot
       </p>
       <div
         className={`font-orbitron font-black tabular-nums leading-none ${peligro ? 'animate-glow-soft' : ''}`}
         style={{
-          fontSize: 'clamp(3.5rem, 10vw, 10rem)',
+          fontSize: 'clamp(2.75rem, 14vmin, 20rem)',
           color: peligro ? '#ef4444' : '#fbbf24',
           textShadow: peligro
             ? '0 0 30px rgba(239,68,68,0.85), 0 0 70px rgba(239,68,68,0.45)'
@@ -204,6 +223,10 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         backgroundImage:
           'radial-gradient(ellipse at top, rgba(39,39,42,0.7), transparent 70%),' +
           'radial-gradient(ellipse at bottom, rgba(20,20,24,1), rgba(0,0,0,1))',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
       }}
     >
       {/* Insignia CMT como watermark sutil al centro */}
@@ -217,7 +240,8 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
           width={1500}
           height={1500}
           priority
-          className="w-[min(60vw,55vh)] h-auto opacity-[0.045] mix-blend-screen"
+          className="h-auto opacity-[0.04] mix-blend-screen"
+          style={{ width: 'min(50vmin, 60vmax)' }}
         />
       </div>
 
@@ -229,8 +253,16 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
 
       {/* Contenido encima */}
       <div className="relative z-10 flex min-h-[100dvh] flex-col">
-        {/* HEADER */}
-        <header className="flex items-center justify-between px-4 sm:px-8 py-3 sm:py-4">
+        {/* HEADER — padding y fuentes fluidas; en xs se oculta el subtítulo. */}
+        <header
+          className="flex items-center justify-between"
+          style={{
+            paddingLeft: 'clamp(0.75rem, 2vmin, 3rem)',
+            paddingRight: 'clamp(0.75rem, 2vmin, 3rem)',
+            paddingTop: 'clamp(0.5rem, 1.2vmin, 1.5rem)',
+            paddingBottom: 'clamp(0.5rem, 1.2vmin, 1.5rem)',
+          }}
+        >
           <div className="flex items-center gap-3 min-w-0">
             <Image
               src="/cmt_insignia.png"
@@ -238,16 +270,23 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
               width={88}
               height={88}
               priority
-              className="h-9 w-9 sm:h-12 sm:w-12 drop-shadow-[0_0_18px_rgba(251,146,60,0.35)]"
+              className="drop-shadow-[0_0_18px_rgba(251,146,60,0.35)]"
+              style={{
+                height: 'clamp(2rem, 4.5vmin, 5rem)',
+                width: 'clamp(2rem, 4.5vmin, 5rem)',
+              }}
             />
             <div className="min-w-0 leading-tight">
               <p
                 className="font-semibold uppercase tracking-[0.22em] text-zinc-200 truncate"
-                style={{ fontSize: 'clamp(0.7rem, 1.4vw, 1.05rem)' }}
+                style={{ fontSize: 'clamp(0.65rem, 1.4vmin, 1.4rem)' }}
               >
                 CMT BasketBall Club
               </p>
-              <p className="text-zinc-500 text-[0.65rem] sm:text-xs tracking-widest uppercase truncate">
+              <p
+                className="hidden xs:block sm:block text-zinc-500 tracking-widest uppercase truncate"
+                style={{ fontSize: 'clamp(0.55rem, 1vmin, 1rem)' }}
+              >
                 Clorinda Matto de Turner
               </p>
             </div>
@@ -290,13 +329,22 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         </header>
 
         {/* HERO: Periodo + Tiempo. Si no hay reloj de periodo, el Q toma el
-            protagonismo del hero. */}
-        <div className="flex flex-col items-center px-4 pt-1 pb-2 sm:pt-3 sm:pb-4">
+            protagonismo del hero. Espaciado y fuentes via clamp+vmin para que
+            escale en TVs 4K sin desbordar en phone portrait. */}
+        <div
+          className="flex flex-col items-center"
+          style={{
+            paddingLeft: 'clamp(0.5rem, 2vmin, 3rem)',
+            paddingRight: 'clamp(0.5rem, 2vmin, 3rem)',
+            paddingTop: 'clamp(0.25rem, 0.8vmin, 1rem)',
+            paddingBottom: 'clamp(0.5rem, 1.2vmin, 1.5rem)',
+          }}
+        >
           {conReloj ? (
             <>
               <div
                 className="inline-flex items-baseline gap-3 uppercase tracking-[0.45em]"
-                style={{ fontSize: 'clamp(1.1rem, 2.2vw, 2rem)' }}
+                style={{ fontSize: 'clamp(0.85rem, 2.2vmin, 2.5rem)' }}
               >
                 <span className="font-orbitron font-black text-orange-400">
                   {periodoEtiqueta}
@@ -305,11 +353,12 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
                 <span className="text-zinc-400 font-semibold">Periodo</span>
               </div>
               <p
-                className={`font-orbitron font-black tabular-nums leading-none mt-1 ${
+                className={`font-orbitron font-black tabular-nums leading-none ${
                   relojBajo ? 'animate-glow-soft' : ''
                 }`}
                 style={{
-                  fontSize: 'clamp(4.5rem, 16vw, 16rem)',
+                  marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
+                  fontSize: 'clamp(3.5rem, 20vmin, 26rem)',
                   color: relojBajo ? '#ef4444' : '#ffffff',
                   textShadow: relojBajo
                     ? '0 0 40px rgba(239,68,68,0.85), 0 0 100px rgba(239,68,68,0.4)'
@@ -324,14 +373,15 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             <>
               <p
                 className="uppercase tracking-[0.45em] text-zinc-400 font-semibold"
-                style={{ fontSize: 'clamp(1rem, 1.6vw, 1.4rem)' }}
+                style={{ fontSize: 'clamp(0.85rem, 1.8vmin, 2rem)' }}
               >
                 Periodo
               </p>
               <p
-                className="font-orbitron font-black tabular-nums leading-none mt-1 text-orange-400"
+                className="font-orbitron font-black tabular-nums leading-none text-orange-400"
                 style={{
-                  fontSize: 'clamp(6rem, 22vw, 22rem)',
+                  marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
+                  fontSize: 'clamp(5rem, 30vmin, 38rem)',
                   textShadow: '0 0 40px rgba(251,146,60,0.55), 0 0 90px rgba(251,146,60,0.25)',
                   letterSpacing: '-0.02em',
                 }}
@@ -343,11 +393,19 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         </div>
 
         {/* MARCADOR: con shot 3 columnas (LOCAL | SHOT | VISITANTE); sin shot,
-            2 columnas balanceadas. En móvil siempre apilado. */}
+            2 columnas balanceadas. Activa 3 columnas desde `sm:` para que un
+            phone en landscape también las use (no apile). En portrait phone
+            se apila como antes. */}
         <div
-          className={`flex-1 grid gap-3 sm:gap-4 px-3 sm:px-6 pb-4 sm:pb-6 grid-cols-1 md:items-stretch ${
-            conShot ? 'md:grid-cols-[1fr_auto_1fr]' : 'md:grid-cols-2'
+          className={`flex-1 grid grid-cols-1 sm:items-stretch ${
+            conShot ? 'sm:grid-cols-[1fr_auto_1fr]' : 'sm:grid-cols-2'
           }`}
+          style={{
+            gap: 'clamp(0.5rem, 1.5vmin, 1.5rem)',
+            paddingLeft: 'clamp(0.5rem, 1.5vmin, 2rem)',
+            paddingRight: 'clamp(0.5rem, 1.5vmin, 2rem)',
+            paddingBottom: 'clamp(0.5rem, 1.5vmin, 2rem)',
+          }}
         >
           <PanelEquipo
             nombre={m.nombre_local}
@@ -357,7 +415,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             lado="local"
           />
           {conShot && (
-            <div className="order-first md:order-none md:flex md:items-center">
+            <div className="order-first sm:order-none sm:flex sm:items-center">
               <ShotClock ms={shotMs} />
             </div>
           )}
@@ -370,8 +428,17 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
           />
         </div>
 
-        {/* FOOTER */}
-        <footer className="px-6 py-2 sm:py-3 text-zinc-600 text-[0.65rem] sm:text-xs text-center uppercase tracking-[0.3em]">
+        {/* FOOTER — alto fijo bajo, no roba espacio al hero del marcador. */}
+        <footer
+          className="text-zinc-600 text-center uppercase tracking-[0.3em]"
+          style={{
+            paddingLeft: 'clamp(0.75rem, 1.5vmin, 2rem)',
+            paddingRight: 'clamp(0.75rem, 1.5vmin, 2rem)',
+            paddingTop: 'clamp(0.35rem, 0.8vmin, 0.8rem)',
+            paddingBottom: 'clamp(0.35rem, 0.8vmin, 0.8rem)',
+            fontSize: 'clamp(0.55rem, 0.95vmin, 1rem)',
+          }}
+        >
           <span className="text-zinc-500">{m.nombre_local}</span>{' '}
           <span className="font-orbitron font-bold text-zinc-300">
             {m.puntos_local} – {m.puntos_visitante}
