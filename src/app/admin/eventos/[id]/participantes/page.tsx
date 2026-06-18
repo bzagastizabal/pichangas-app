@@ -111,13 +111,24 @@ export default async function ParticipantesPage({
   ).length;
   const cuposDisponibles = Math.max(0, evento.cupos_totales - ocupados);
   // Solo los que tienen cupo (pendiente/confirmado) entran a la lista
-  // copiada — los de lista de espera o expirados se omiten.
+  // copiada — los de lista de espera y los liberados van al apartado "En espera".
   const itemsCopia = inscritos
     .filter((i) => i.estado === 'pendiente' || i.estado === 'confirmado')
     .map((i) => ({
       nombre: i.perfiles?.nombre_completo ?? 'Jugador',
       telefono: i.perfiles?.telefono ?? null,
       estado: estadoDe(i),
+    }));
+
+  // En espera: perdieron su cupo por la lógica "el que paga primero gana" o
+  // entraron cuando ya no había cupo. Si yapean primero recuperan el cupo.
+  const itemsEnEspera = inscritos
+    .filter((i) => i.estado === 'liberado' || i.estado === 'lista_espera')
+    .sort((a, b) => a.fecha_reserva.localeCompare(b.fecha_reserva))
+    .map((i) => ({
+      nombre: i.perfiles?.nombre_completo ?? 'Jugador',
+      telefono: i.perfiles?.telefono ?? null,
+      tipo: (i.estado === 'liberado' ? 'liberado' : 'espera') as 'liberado' | 'espera',
     }));
 
   return (
@@ -150,6 +161,7 @@ export default async function ParticipantesPage({
         cuposDisponibles={cuposDisponibles}
         inscribirUrl={`${base}/inscribir/${evento.slug_inscripcion}`}
         items={itemsCopia}
+        enEspera={itemsEnEspera}
       />
 
       <form action={agregarParticipante} className="flex flex-wrap items-center gap-2 rounded-lg border border-borde p-4">

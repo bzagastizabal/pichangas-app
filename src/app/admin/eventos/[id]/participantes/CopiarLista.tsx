@@ -11,6 +11,18 @@ type Item = {
   estado: EstadoPagoJugador;
 };
 
+type ItemEspera = {
+  nombre: string;
+  telefono: string | null;
+  // 'liberado' = tenía cupo y fue desplazado · 'espera' = entró cuando ya no había cupo
+  tipo: 'liberado' | 'espera';
+};
+
+const EMOJI_ESPERA: Record<ItemEspera['tipo'], string> = {
+  liberado: '🔄',
+  espera: '⏰',
+};
+
 const EMOJI_PAGO: Record<EstadoPagoJugador, string> = {
   pagado: '✅',
   en_revision: '⏳',
@@ -64,6 +76,7 @@ export function CopiarLista({
   cuposDisponibles,
   inscribirUrl,
   items,
+  enEspera = [],
 }: {
   titulo: string;
   sedeNombre: string;
@@ -76,12 +89,14 @@ export function CopiarLista({
   cuposDisponibles: number;
   inscribirUrl: string;
   items: Item[];
+  enEspera?: ItemEspera[];
 }) {
   const [conTel, setConTel] = useState(true);
   const [conPago, setConPago] = useState(true);
   const [conMapa, setConMapa] = useState(Boolean(sedeMapa));
   const [numerar, setNumerar] = useState(true);
   const [mostrarVacios, setMostrarVacios] = useState(true);
+  const [conEspera, setConEspera] = useState(true);
   const [copiado, setCopiado] = useState(false);
 
   const texto = useMemo(() => {
@@ -110,6 +125,20 @@ export function CopiarLista({
         lineas.push(`${prefijo} —`);
       }
     }
+
+    // Sección "En espera" (liberados + lista_espera). Solo aparece si hay
+    // alguien y el toggle está prendido. El que yapee primero recupera cupo.
+    if (conEspera && enEspera.length > 0) {
+      lineas.push('');
+      lineas.push('En espera (el que paga primero recupera cupo):');
+      enEspera.forEach((j, i) => {
+        const prefijo = numerar ? `${i + 1}.` : '-';
+        const tipoEmoji = `${EMOJI_ESPERA[j.tipo]} `;
+        const tel = conTel && j.telefono ? ` · ${j.telefono}` : '';
+        lineas.push(`${prefijo} ${tipoEmoji}${j.nombre}${tel}`);
+      });
+    }
+
     return lineas.join('\n');
   }, [
     titulo,
@@ -124,10 +153,12 @@ export function CopiarLista({
     cuposTotales,
     inscribirUrl,
     items,
+    enEspera,
     conTel,
     conPago,
     numerar,
     mostrarVacios,
+    conEspera,
   ]);
 
   async function copiar() {
@@ -208,6 +239,16 @@ export function CopiarLista({
           />
           Mostrar cupos vacíos
         </label>
+        {enEspera.length > 0 && (
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={conEspera}
+              onChange={(e) => setConEspera(e.target.checked)}
+            />
+            Mostrar "En espera" ({enEspera.length})
+          </label>
+        )}
       </div>
 
       <pre className="rounded-lg bg-black/40 ring-1 ring-white/5 p-3 text-xs text-texto whitespace-pre-wrap font-mono leading-relaxed max-h-80 overflow-auto">
