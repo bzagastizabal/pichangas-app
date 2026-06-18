@@ -50,6 +50,10 @@ export function costoArbitroTramo(a: TarifasArbitro, duracion: number): number {
 
 export type EstadoEvento = 'abierta' | 'cerrada' | 'cancelada' | 'finalizada';
 export type TipoEvento = 'pichanga' | 'amistoso' | 'torneo';
+// Cómo reasigna cupos cuando un en_espera paga.
+//  · inmediato   = clásico: "el que paga primero gana" en cualquier momento.
+//  · tras_limite = respeta fecha límite: solo desplaza morosos tras el límite.
+export type ModoCupos = 'inmediato' | 'tras_limite';
 
 export type Categoria = {
   id: string;
@@ -123,6 +127,7 @@ export type Evento = {
   // Destino del pago (Yape/Plin). Snapshot al momento del alta del evento.
   pago_telefono: string | null;
   pago_titular: string | null;
+  modo_cupos: ModoCupos;
   created_at: string;
 };
 
