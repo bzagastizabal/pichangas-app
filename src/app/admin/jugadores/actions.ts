@@ -183,3 +183,36 @@ export async function alternarActivoJugador(formData: FormData): Promise<void> {
   await admin.from('perfiles').update({ activo: !activo }).eq('id', id);
   refresh();
 }
+
+// Elimina al jugador DEFINITIVAMENTE: borra el auth user (cascade al perfil,
+// inscripciones, pagos y notificaciones). Útil para limpiar duplicados.
+// Falla con mensaje claro si el jugador es referenciado por un FK on delete
+// restrict (creador de movimientos, admin de un evento, creador de un marcador
+// o un torneo). En esos casos lo correcto es darle de baja en vez de eliminar.
+export async function eliminarJugador(formData: FormData): Promise<void> {
+  const yo = await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  if (id === yo.id) {
+    redirect(
+      '/admin/jugadores?error=' +
+        encodeURIComponent('No puedes eliminarte a ti mismo.'),
+    );
+  }
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) {
+    redirect(
+      '/admin/jugadores?error=' +
+        encodeURIComponent(
+          'No se pudo eliminar (' +
+            error.message +
+            '). Si tiene movimientos, eventos creados o marcadores, dale de baja en vez de eliminar.',
+        ),
+    );
+  }
+  redirect(
+    '/admin/jugadores?ok=' +
+      encodeURIComponent('Jugador eliminado definitivamente.'),
+  );
+}

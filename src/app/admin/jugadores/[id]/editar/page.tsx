@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import type { Categoria } from '@/lib/types';
 import { TelefonoInput } from '@/components/TelefonoInput';
 import { NacionalidadInput } from '@/components/NacionalidadInput';
-import { guardarJugador } from '../../actions';
+import { eliminarJugador, guardarJugador } from '../../actions';
+import { BotonEliminarJugador } from './BotonEliminarJugador';
 
 const input = 'border border-borde p-2 w-full rounded bg-campo text-texto';
 
@@ -123,6 +124,21 @@ export default async function EditarJugadorPage({
           </Link>
         </div>
       </form>
+
+      <section className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 space-y-2">
+        <h2 className="font-semibold text-red-300">Zona de peligro</h2>
+        <p className="text-xs text-tenue">
+          Eliminar definitivamente borra la cuenta del jugador y todas sus inscripciones
+          y pagos en cascada. Si el jugador creó movimientos o eventos, la eliminación
+          fallará — en ese caso usa "Dar de baja". Útil sobre todo para limpiar cuentas
+          duplicadas que nunca se usaron.
+        </p>
+        <BotonEliminarJugador
+          accion={eliminarJugador}
+          id={perfil.id}
+          nombre={perfil.nombre_completo ?? 'este jugador'}
+        />
+      </section>
     </div>
   );
 }

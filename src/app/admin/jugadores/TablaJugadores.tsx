@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { linkWa } from '@/lib/wa';
 import { BotonReiniciar } from './BotonReiniciar';
-import { alternarActivoJugador } from './actions';
+import { alternarActivoJugador, eliminarJugador } from './actions';
 
 export type FilaJugador = {
   id: string;
@@ -186,6 +186,27 @@ export function TablaJugadores({
                         className="text-tenue hover:underline"
                       >
                         {p.activo ? 'Dar de baja' : 'Reactivar'}
+                      </button>
+                    </form>
+                    <form
+                      action={eliminarJugador}
+                      onSubmit={(e) => {
+                        if (
+                          !confirm(
+                            `¿Eliminar DEFINITIVAMENTE a "${p.nombre_completo ?? 'este jugador'}"? Borra cuenta, inscripciones y pagos. No se puede deshacer.`,
+                          )
+                        ) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <input type="hidden" name="id" value={p.id} />
+                      <button
+                        type="submit"
+                        className="text-red-400 hover:underline"
+                        title="Eliminar definitivamente"
+                      >
+                        Eliminar
                       </button>
                     </form>
                   </div>
