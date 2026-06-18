@@ -26,6 +26,7 @@ type CamposValidados = {
   costo_por_participante: number;
   pago_telefono: string | null;
   pago_titular: string | null;
+  modo_cupos: 'inmediato' | 'tras_limite';
 };
 
 function num(formData: FormData, name: string): number {
@@ -115,6 +116,10 @@ function validar(
   const telDigitos = ((formData.get('pago_telefono') as string) ?? '').replace(/\D/g, '');
   const pago_telefono = telDigitos.length >= 6 ? telDigitos : null;
 
+  const modoRaw = (formData.get('modo_cupos') as string | null)?.trim() ?? 'inmediato';
+  const modo_cupos: 'inmediato' | 'tras_limite' =
+    modoRaw === 'tras_limite' ? 'tras_limite' : 'inmediato';
+
   return {
     ok: true,
     arbitros,
@@ -134,6 +139,7 @@ function validar(
       costo_por_participante,
       pago_telefono,
       pago_titular,
+      modo_cupos,
     },
   };
 }

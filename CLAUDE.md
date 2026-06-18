@@ -94,6 +94,11 @@ decide si la pichanga se realiza o se cancela.)
     lista_espera a pendiente con nueva ventana.
   - Notificaciones in-app (tabla `notificaciones`): promovido/liberado/expirado/confirmado.
   - La lista de espera puede pagar (compite por cupo). SQL: 06, 07.
+  - **SQL 26 — modo_cupos por evento**: `inmediato` (clásico, default) o `tras_limite`. En
+    `tras_limite` el `aprobar_pago` antes de la fecha límite aprueba el pago pero no desplaza;
+    después del límite solo desplaza morosos (pendientes sin pago aprobado). El
+    `expirar_y_promover` mejora para promover un lista_espera con pago aprobado directo a
+    'confirmado'. Selector en `EventoForm` con radios + tooltip.
 - **Fase 4 (COMPLETA):** Módulo financiero `/admin/finanzas`. Consolidado con filtro por rango
   de fechas (ingresos/egresos/ganancia/morosos) y detalle por evento `/admin/finanzas/[id]`
   con lista de inscritos y morosos. Ingresos = pagos aprobados; egresos base = costo_sede +

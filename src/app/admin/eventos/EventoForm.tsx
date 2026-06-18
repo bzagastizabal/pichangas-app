@@ -427,6 +427,50 @@ export function EventoForm({
         </div>
       </div>
 
+      {/* Modo de reasignación de cupos — define cómo se comporta el sistema
+          cuando un jugador en lista de espera (o liberado) paga su pichanga. */}
+      <div className="rounded-lg border border-borde p-4 space-y-2">
+        <div>
+          <p className="text-sm font-medium text-texto">
+            Modo de cupos
+            <Pista texto="Define cómo se reasignan los cupos cuando alguien de la lista de espera paga. El clásico es agresivo (gana el que paga primero); el otro respeta la fecha límite." />
+          </p>
+        </div>
+        <label className="flex items-start gap-2 cursor-pointer rounded p-2 hover:bg-white/5">
+          <input
+            type="radio"
+            name="modo_cupos"
+            value="inmediato"
+            defaultChecked={(inicial?.modo_cupos ?? 'inmediato') === 'inmediato'}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-medium text-sm">Inmediato (clásico)</span>
+            <span className="block text-xs text-tenue">
+              El que paga primero gana, en cualquier momento. Un en espera que pague
+              desplaza al pendiente más débil (sin pago o con comprobante más nuevo).
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 cursor-pointer rounded p-2 hover:bg-white/5">
+          <input
+            type="radio"
+            name="modo_cupos"
+            value="tras_limite"
+            defaultChecked={inicial?.modo_cupos === 'tras_limite'}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-medium text-sm">Respeta fecha límite</span>
+            <span className="block text-xs text-tenue">
+              Antes del límite los inscritos tienen prioridad. Un en espera que pague
+              recibe el pago aprobado pero queda esperando. Después del límite, su
+              pago desplaza a morosos (inscritos sin pago aprobado).
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div className="rounded-lg bg-orange-50 border border-orange-200 p-4 space-y-3">
         <div>
           <p className="text-sm text-orange-800">Costo por participante (redondeado)</p>
