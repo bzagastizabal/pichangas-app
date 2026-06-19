@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { aprobarPago } from '@/app/admin/pagos/actions';
 import { CompartirEnlace } from '@/app/admin/CompartirEnlace';
+import { BotonSubmit } from '@/components/BotonSubmit';
 import { quitarParticipante } from './actions';
 import { FormPagoAdmin } from './FormPagoAdmin';
 import { FormAprobarManual } from './FormAprobarManual';
@@ -39,9 +40,12 @@ export function AccionesParticipante({
       {pagoEnRevisionId && (
         <form action={aprobarPago}>
           <input type="hidden" name="id" value={pagoEnRevisionId} />
-          <button type="submit" className="text-xs rounded bg-green-600 px-2 py-1 text-white">
+          <BotonSubmit
+            className="text-xs rounded bg-green-600 px-2 py-1 text-white"
+            pendiente="Aprobando…"
+          >
             Aprobar
-          </button>
+          </BotonSubmit>
         </form>
       )}
 

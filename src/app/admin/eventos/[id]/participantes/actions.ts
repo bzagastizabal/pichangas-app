@@ -109,6 +109,24 @@ export async function subirComprobanteAdmin(
   if (archivo.size > MAX_BYTES) return { error: 'Máximo 5 MB.' };
 
   const admin = createAdminClient();
+
+  // Idempotencia: si ya hay pago aprobado o en revisión, no creamos otro.
+  const { data: vivo } = await admin
+    .from('pagos')
+    .select('id, estado')
+    .eq('inscripcion_id', inscripcionId)
+    .in('estado', ['aprobado', 'en_revision'])
+    .limit(1)
+    .maybeSingle();
+  if (vivo) {
+    return {
+      error:
+        vivo.estado === 'aprobado'
+          ? 'Este jugador ya tiene un pago aprobado.'
+          : 'Ya hay un comprobante en revisión para este jugador.',
+    };
+  }
+
   const ext = archivo.name.includes('.') ? archivo.name.split('.').pop() : 'jpg';
   const ruta = `${usuarioId}/${inscripcionId}-${Date.now()}.${ext}`;
 
@@ -152,6 +170,19 @@ export async function aprobarPagoManual(
 
   // INSERT con service-role (bypassa RLS, asegurando que entre el pago).
   const admin = createAdminClient();
+
+  // Idempotencia: si ya hay pago aprobado, no creamos otro.
+  const { data: yaAprobado } = await admin
+    .from('pagos')
+    .select('id')
+    .eq('inscripcion_id', inscripcionId)
+    .eq('estado', 'aprobado')
+    .limit(1)
+    .maybeSingle();
+  if (yaAprobado) {
+    return { error: 'Este jugador ya tiene un pago aprobado.' };
+  }
+
   const { data: pago, error: errInsert } = await admin
     .from('pagos')
     .insert({

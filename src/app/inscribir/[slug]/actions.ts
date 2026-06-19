@@ -117,6 +117,23 @@ export async function subirComprobante(
 
   const supabase = await createClient();
 
+  // Idempotencia: si ya hay pago aprobado o en revisión, no se vuelve a subir.
+  const { data: vivo } = await supabase
+    .from('pagos')
+    .select('id, estado')
+    .eq('inscripcion_id', inscripcionId)
+    .in('estado', ['aprobado', 'en_revision'])
+    .limit(1)
+    .maybeSingle();
+  if (vivo) {
+    return {
+      error:
+        vivo.estado === 'aprobado'
+          ? 'Tu pago ya está aprobado.'
+          : 'Ya hay un comprobante en revisión, esperá que el staff lo apruebe.',
+    };
+  }
+
   // Ruta bajo la carpeta del propio usuario (lo exige la RLS de Storage).
   const ext = archivo.name.includes('.') ? archivo.name.split('.').pop() : 'jpg';
   const ruta = `${user.id}/${inscripcionId}-${Date.now()}.${ext}`;

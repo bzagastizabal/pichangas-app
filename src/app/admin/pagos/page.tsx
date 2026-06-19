@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import type { EstadoPago, Pago } from '@/lib/types';
 import { formatearFechaLima } from '@/lib/fechas';
+import { BotonSubmit } from '@/components/BotonSubmit';
 import { aprobarPago, rechazarPago } from './actions';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
@@ -158,9 +159,12 @@ export default async function PagosPage({
                         <div className="flex flex-col items-end gap-1">
                           <form action={aprobarPago}>
                             <input type="hidden" name="id" value={p.id} />
-                            <button type="submit" className="rounded bg-green-600 px-3 py-1 text-white">
+                            <BotonSubmit
+                              className="rounded bg-green-600 px-3 py-1 text-white"
+                              pendiente="…"
+                            >
                               Aprobar
-                            </button>
+                            </BotonSubmit>
                           </form>
                           <form action={rechazarPago} className="flex items-center gap-1">
                             <input type="hidden" name="id" value={p.id} />
@@ -169,9 +173,12 @@ export default async function PagosPage({
                               placeholder="Motivo"
                               className="w-28 rounded border border-borde bg-campo px-2 py-1 text-texto"
                             />
-                            <button type="submit" className="rounded border border-red-400 px-2 py-1 text-red-400">
+                            <BotonSubmit
+                              className="rounded border border-red-400 px-2 py-1 text-red-400"
+                              pendiente="…"
+                            >
                               Rechazar
-                            </button>
+                            </BotonSubmit>
                           </form>
                         </div>
                       )}
