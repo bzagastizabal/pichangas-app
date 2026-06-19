@@ -89,8 +89,10 @@ export default async function FinanzaEventoPage({
     .order('fecha', { ascending: false });
   const movimientos = (movData as Movimiento[]) ?? [];
 
+  // Solo un pago aprobado por inscripción (defensivo contra duplicados).
   const ingresosCuotas = inscritos.reduce(
-    (acc, i) => acc + i.pagos.filter((p) => p.estado === 'aprobado').reduce((s, p) => s + p.monto_declarado, 0),
+    (acc, i) =>
+      acc + (i.pagos.find((p) => p.estado === 'aprobado')?.monto_declarado ?? 0),
     0,
   );
   const movAprobados = movimientos.filter((m) => m.estado === 'aprobado');

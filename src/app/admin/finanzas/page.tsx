@@ -30,9 +30,10 @@ type InscFin = {
 
 // Balance derivado de un evento y sus inscripciones.
 function balance(ev: EventoFin, inscs: InscFin[]) {
+  // Solo un pago aprobado por inscripción: si hay duplicados (ej. el admin
+  // hizo doble click en "Aprobar"), no se suman dos veces.
   const ingresos = inscs.reduce(
-    (acc, i) =>
-      acc + i.pagos.filter((p) => p.estado === 'aprobado').reduce((s, p) => s + p.monto_declarado, 0),
+    (acc, i) => acc + (i.pagos.find((p) => p.estado === 'aprobado')?.monto_declarado ?? 0),
     0,
   );
   const egresos = ev.costo_sede + ev.costo_arbitraje;
