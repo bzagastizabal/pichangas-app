@@ -318,6 +318,9 @@ export type Marcador = {
   tiene_reloj_periodo: boolean;
   // Si false, no se muestra ni opera shot clock.
   tiene_shot_clock: boolean;
+  // Contador monotónico que el admin incrementa para sonar la bocina remota
+  // en el visor. SQL 28.
+  bocina_pulsos: number;
   expira_en: string;
   creado_por: string;
   created_at: string;
