@@ -18,6 +18,7 @@ import {
   renombrarEquipos,
   resetReloj,
   resetShot,
+  sonarBocina,
   togglePlay,
 } from './actions';
 
@@ -344,6 +345,12 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
                 <Boton tono="neutro">+Q</Boton>
               </FormBtn>
             </div>
+            {/* Bocina manual: incrementa bocina_pulsos; el visor lo escucha
+                por Realtime y suena la chicharra. */}
+            <FormBtn action={sonarBocina}>
+              <HiddenId id={m.id} />
+              <Boton tono="primario">🔔 Bocina</Boton>
+            </FormBtn>
           </div>
 
           {/* Shot (solo si está activado) */}

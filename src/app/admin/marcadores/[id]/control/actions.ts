@@ -178,6 +178,17 @@ export async function renombrarEquipos(formData: FormData): Promise<void> {
   refresh();
 }
 
+// Suena la bocina: incrementa el contador bocina_pulsos en el marcador.
+// El visor lo escucha por Realtime y reproduce el horn al detectar el cambio.
+export async function sonarBocina(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  // El RPC usa sesión del admin para que es_admin() vea su auth.uid().
+  const supabase = await createClient();
+  await supabase.rpc('marcador_bocina', { p_id: id });
+}
+
 // Reinicio total (mantiene nombres, duración y expiración).
 export async function reiniciarPartido(formData: FormData): Promise<void> {
   await requireAdmin();
