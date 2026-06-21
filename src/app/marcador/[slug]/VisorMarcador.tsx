@@ -9,6 +9,12 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { formatearReloj, msRestantes, type Marcador } from '@/lib/types';
+import {
+  audioDesbloqueado,
+  desbloquearAudio,
+  tocarBeep,
+  tocarBocina,
+} from '@/lib/audio-marcador';
 
 // ---- Lado de un equipo ---------------------------------------------------
 
@@ -168,8 +174,22 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   const [m, setM] = useState<Marcador>(inicial);
   const [relojMs, setRelojMs] = useState(inicial.reloj_restante_ms);
   const [shotMs, setShotMs] = useState(inicial.shot_restante_ms);
+  const [sonidoOn, setSonidoOn] = useState(false);
   const rafRef = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  // Refs para detectar transiciones de segundo sin re-disparar el RAF.
+  const lastShotSecRef = useRef<number>(Math.ceil(inicial.shot_restante_ms / 1000));
+  const lastRelojPosRef = useRef<boolean>(inicial.reloj_restante_ms > 0);
+  const lastBocinaRef = useRef<number>(inicial.bocina_pulsos ?? 0);
+
+  async function alternarSonido() {
+    if (sonidoOn) {
+      setSonidoOn(false);
+      return;
+    }
+    const ok = await desbloquearAudio();
+    setSonidoOn(ok);
+  }
 
   // Realtime: refleja cambios externos del control.
   useEffect(() => {
@@ -187,18 +207,67 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
     };
   }, [inicial.id]);
 
-  // Tick local con requestAnimationFrame para reloj y shot.
+  // Tick local con requestAnimationFrame para reloj y shot. También dispara
+  // sonidos automáticos: beep cada segundo del shot del 5 al 1, chicharra
+  // corta al expirar el shot, chicharra larga al expirar el reloj.
   useEffect(() => {
     function tick() {
-      setRelojMs(msRestantes(m.reloj_restante_ms, m.reloj_corriendo, m.reloj_inicio));
-      setShotMs(msRestantes(m.shot_restante_ms, m.shot_corriendo, m.shot_inicio));
+      const nuevoReloj = msRestantes(
+        m.reloj_restante_ms,
+        m.reloj_corriendo,
+        m.reloj_inicio,
+      );
+      const nuevoShot = msRestantes(
+        m.shot_restante_ms,
+        m.shot_corriendo,
+        m.shot_inicio,
+      );
+      setRelojMs(nuevoReloj);
+      setShotMs(nuevoShot);
+
+      // Beep en cada cruce de segundo del shot (5,4,3,2,1) + bocina corta a 0.
+      if (sonidoOn && m.shot_corriendo) {
+        const shotSec = Math.ceil(nuevoShot / 1000);
+        if (shotSec < lastShotSecRef.current) {
+          if (shotSec >= 1 && shotSec <= 5) tocarBeep();
+          else if (shotSec === 0) tocarBocina(true);
+          lastShotSecRef.current = shotSec;
+        } else if (shotSec > lastShotSecRef.current) {
+          // Reset (admin pulsó "24" o "14") — solo reseteamos el ref, no suena.
+          lastShotSecRef.current = shotSec;
+        }
+      } else {
+        lastShotSecRef.current = Math.ceil(nuevoShot / 1000);
+      }
+
+      // Bocina larga al expirar el reloj de juego (solo si estaba corriendo).
+      const positivo = nuevoReloj > 0;
+      if (
+        sonidoOn &&
+        m.reloj_corriendo &&
+        lastRelojPosRef.current &&
+        !positivo
+      ) {
+        tocarBocina(false);
+      }
+      lastRelojPosRef.current = positivo;
+
       rafRef.current = requestAnimationFrame(tick);
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [m]);
+  }, [m, sonidoOn]);
+
+  // Bocina remota: el admin incrementa bocina_pulsos desde el control.
+  useEffect(() => {
+    const actual = m.bocina_pulsos ?? 0;
+    if (actual > lastBocinaRef.current && sonidoOn && audioDesbloqueado()) {
+      tocarBocina(false);
+    }
+    lastBocinaRef.current = actual;
+  }, [m.bocina_pulsos, sonidoOn]);
 
   function pantallaCompleta() {
     const el = rootRef.current;
@@ -313,6 +382,20 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
               </span>
               {m.reloj_corriendo ? 'LIVE' : 'PAUSA'}
             </span>
+
+            <button
+              type="button"
+              onClick={alternarSonido}
+              aria-label={sonidoOn ? 'Silenciar sonido' : 'Activar sonido'}
+              className={`inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full ring-1 transition ${
+                sonidoOn
+                  ? 'bg-green-500/15 ring-green-400/40 text-green-300 hover:bg-green-500/25'
+                  : 'bg-white/5 ring-white/15 text-zinc-400 hover:bg-white/10 hover:text-white'
+              }`}
+              title={sonidoOn ? 'Silenciar (sonido activado)' : 'Activar sonido del marcador'}
+            >
+              <span className="text-base sm:text-lg">{sonidoOn ? '🔊' : '🔇'}</span>
+            </button>
 
             <button
               type="button"
