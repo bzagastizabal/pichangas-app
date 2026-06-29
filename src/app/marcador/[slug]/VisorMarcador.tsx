@@ -54,12 +54,15 @@ function PanelEquipo({
   faltas,
   timeouts,
   lado,
+  mega = false,
 }: {
   nombre: string;
   puntos: number;
   faltas: number;
   timeouts: number;
   lado: Lado;
+  // mega = sin reloj, sin shot y sin Q → nombre y puntaje más grandes.
+  mega?: boolean;
 }) {
   const bonus = faltas >= 4;
   const flash = useFlashAlCambiar(puntos);
@@ -79,18 +82,25 @@ function PanelEquipo({
         />
         <p
           className="uppercase tracking-[0.18em] font-bold text-white truncate"
-          style={{ fontSize: 'clamp(1.1rem, 5vmin, 7rem)' }}
+          style={{
+            fontSize: mega
+              ? 'clamp(1.8rem, 8vmin, 11rem)'
+              : 'clamp(1.1rem, 5vmin, 7rem)',
+          }}
         >
           {nombre}
         </p>
       </div>
 
       {/* Puntaje gigante: usa vmin para escalar con la dimensión más chica
-          (ideal cuando el visor se proyecta en TV horizontal o portrait phone). */}
+          (ideal cuando el visor se proyecta en TV horizontal o portrait phone).
+          En modo mega (sin hero arriba) se hace ~30% más grande. */}
       <p
         className={`font-orbitron font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
         style={{
-          fontSize: 'clamp(5rem, 32vmin, 40rem)',
+          fontSize: mega
+            ? 'clamp(7rem, 44vmin, 56rem)'
+            : 'clamp(5rem, 32vmin, 40rem)',
           marginTop: 'clamp(0.5rem, 1.5vmin, 2rem)',
           color: '#ffffff',
           textShadow: acento.glow,
@@ -282,6 +292,10 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   // Fallback a true para marcadores creados antes de SQL 22 (flags todavía nulos).
   const conReloj: boolean = m.tiene_reloj_periodo ?? true;
   const conShot: boolean = m.tiene_shot_clock ?? true;
+  const conPeriodo: boolean = m.tiene_periodo ?? true;
+  // Modo "máximo simple": sin reloj, sin shot y sin Q → nombres y puntajes
+  // crecen para ocupar el espacio liberado.
+  const modoMega = !conReloj && !conShot && !conPeriodo;
 
   return (
     <div
@@ -411,69 +425,74 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
           </div>
         </header>
 
-        {/* HERO: Periodo + Tiempo. Si no hay reloj de periodo, el Q toma el
-            protagonismo del hero. Espaciado y fuentes via clamp+vmin para que
-            escale en TVs 4K sin desbordar en phone portrait. */}
-        <div
-          className="flex flex-col items-center"
-          style={{
-            paddingLeft: 'clamp(0.5rem, 2vmin, 3rem)',
-            paddingRight: 'clamp(0.5rem, 2vmin, 3rem)',
-            paddingTop: 'clamp(0.25rem, 0.8vmin, 1rem)',
-            paddingBottom: 'clamp(0.5rem, 1.2vmin, 1.5rem)',
-          }}
-        >
-          {conReloj ? (
-            <>
-              <div
-                className="inline-flex items-baseline gap-3 uppercase tracking-[0.45em]"
-                style={{ fontSize: 'clamp(0.85rem, 2.2vmin, 2.5rem)' }}
-              >
-                <span className="font-orbitron font-black text-orange-400">
+        {/* HERO: Tiempo (con o sin Q label encima) o Q gigante o nada — depende
+            de los flags. Cuando se ocultan los tres (reloj, shot, Q), el hero
+            desaparece y los paneles de equipo se quedan con todo el espacio. */}
+        {(conReloj || conPeriodo) && (
+          <div
+            className="flex flex-col items-center"
+            style={{
+              paddingLeft: 'clamp(0.5rem, 2vmin, 3rem)',
+              paddingRight: 'clamp(0.5rem, 2vmin, 3rem)',
+              paddingTop: 'clamp(0.25rem, 0.8vmin, 1rem)',
+              paddingBottom: 'clamp(0.5rem, 1.2vmin, 1.5rem)',
+            }}
+          >
+            {conReloj ? (
+              <>
+                {conPeriodo && (
+                  <div
+                    className="inline-flex items-baseline gap-3 uppercase tracking-[0.45em]"
+                    style={{ fontSize: 'clamp(0.85rem, 2.2vmin, 2.5rem)' }}
+                  >
+                    <span className="font-orbitron font-black text-orange-400">
+                      {periodoEtiqueta}
+                    </span>
+                    <span className="text-zinc-600">·</span>
+                    <span className="text-zinc-400 font-semibold">Periodo</span>
+                  </div>
+                )}
+                <p
+                  className={`font-orbitron font-black tabular-nums leading-none ${
+                    relojBajo ? 'animate-glow-soft' : ''
+                  }`}
+                  style={{
+                    marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
+                    fontSize: 'clamp(3.5rem, 20vmin, 26rem)',
+                    color: relojBajo ? '#ef4444' : '#ffffff',
+                    textShadow: relojBajo
+                      ? '0 0 40px rgba(239,68,68,0.85), 0 0 100px rgba(239,68,68,0.4)'
+                      : '0 0 28px rgba(255,255,255,0.45), 0 0 80px rgba(255,255,255,0.15)',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  {formatearReloj(relojMs)}
+                </p>
+              </>
+            ) : (
+              // Sin reloj pero con periodo: Q gigante como hero.
+              <>
+                <p
+                  className="uppercase tracking-[0.45em] text-zinc-400 font-semibold"
+                  style={{ fontSize: 'clamp(0.85rem, 1.8vmin, 2rem)' }}
+                >
+                  Periodo
+                </p>
+                <p
+                  className="font-orbitron font-black tabular-nums leading-none text-orange-400"
+                  style={{
+                    marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
+                    fontSize: 'clamp(5rem, 30vmin, 38rem)',
+                    textShadow: '0 0 40px rgba(251,146,60,0.55), 0 0 90px rgba(251,146,60,0.25)',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
                   {periodoEtiqueta}
-                </span>
-                <span className="text-zinc-600">·</span>
-                <span className="text-zinc-400 font-semibold">Periodo</span>
-              </div>
-              <p
-                className={`font-orbitron font-black tabular-nums leading-none ${
-                  relojBajo ? 'animate-glow-soft' : ''
-                }`}
-                style={{
-                  marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
-                  fontSize: 'clamp(3.5rem, 20vmin, 26rem)',
-                  color: relojBajo ? '#ef4444' : '#ffffff',
-                  textShadow: relojBajo
-                    ? '0 0 40px rgba(239,68,68,0.85), 0 0 100px rgba(239,68,68,0.4)'
-                    : '0 0 28px rgba(255,255,255,0.45), 0 0 80px rgba(255,255,255,0.15)',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {formatearReloj(relojMs)}
-              </p>
-            </>
-          ) : (
-            <>
-              <p
-                className="uppercase tracking-[0.45em] text-zinc-400 font-semibold"
-                style={{ fontSize: 'clamp(0.85rem, 1.8vmin, 2rem)' }}
-              >
-                Periodo
-              </p>
-              <p
-                className="font-orbitron font-black tabular-nums leading-none text-orange-400"
-                style={{
-                  marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
-                  fontSize: 'clamp(5rem, 30vmin, 38rem)',
-                  textShadow: '0 0 40px rgba(251,146,60,0.55), 0 0 90px rgba(251,146,60,0.25)',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {periodoEtiqueta}
-              </p>
-            </>
-          )}
-        </div>
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         {/* MARCADOR: con shot 3 columnas (LOCAL | SHOT | VISITANTE); sin shot,
             2 columnas balanceadas. Activa 3 columnas desde `sm:` para que un
@@ -496,6 +515,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             faltas={m.faltas_local}
             timeouts={m.timeouts_local}
             lado="local"
+            mega={modoMega}
           />
           {conShot && (
             <div className="order-first sm:order-none sm:flex sm:items-center">
@@ -508,6 +528,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             faltas={m.faltas_visitante}
             timeouts={m.timeouts_visitante}
             lado="visitante"
+            mega={modoMega}
           />
         </div>
 
