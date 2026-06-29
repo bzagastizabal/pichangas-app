@@ -15,6 +15,11 @@ import {
   tocarBeep,
   tocarBocina,
 } from '@/lib/audio-marcador';
+import {
+  aplicarEventoFast,
+  canalFast,
+  type EventoFast,
+} from '@/lib/marcador-broadcast';
 
 // ---- Lado de un equipo ---------------------------------------------------
 
@@ -216,9 +221,12 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   }
 
   // Realtime: refleja cambios externos del control.
+  // - postgres_changes: fuente de verdad (~200-400 ms desde click → visor).
+  // - broadcast: fast-lane efímera que llega antes (~30-80 ms) y se aplica
+  //   optimistamente; postgres_changes reconcilia al llegar.
   useEffect(() => {
     const supabase = createClient();
-    const ch = supabase
+    const chDb = supabase
       .channel(`marcador:public:${inicial.id}`)
       .on(
         'postgres_changes',
@@ -226,8 +234,15 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         (payload) => setM(payload.new as Marcador),
       )
       .subscribe();
+    const chFast = supabase
+      .channel(canalFast(inicial.id))
+      .on('broadcast', { event: 'ev' }, ({ payload }) => {
+        setM((prev) => aplicarEventoFast(prev, payload as EventoFast));
+      })
+      .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      supabase.removeChannel(chDb);
+      supabase.removeChannel(chFast);
     };
   }, [inicial.id]);
 

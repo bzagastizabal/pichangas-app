@@ -7,8 +7,14 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState, type FormHTMLAttributes } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { formatearReloj, msRestantes, type Marcador } from '@/lib/types';
+import {
+  aplicarEventoFast,
+  canalFast,
+  type EventoFast,
+} from '@/lib/marcador-broadcast';
 import {
   cambiarFaltas,
   cambiarPeriodo,
@@ -87,7 +93,7 @@ const ACCENT: Record<Lado, { txt: string; ring: string; chip: string; line: stri
   },
 };
 
-function BloqueEquipo({ m, equipo }: { m: Marcador; equipo: Lado }) {
+function BloqueEquipo({ m, equipo, fast }: { m: Marcador; equipo: Lado; fast: FastFn }) {
   const nombre = equipo === 'local' ? m.nombre_local : m.nombre_visitante;
   const puntos = equipo === 'local' ? m.puntos_local : m.puntos_visitante;
   const faltas = equipo === 'local' ? m.faltas_local : m.faltas_visitante;
@@ -95,6 +101,7 @@ function BloqueEquipo({ m, equipo }: { m: Marcador; equipo: Lado }) {
   const bonus = faltas >= 4;
   const a = ACCENT[equipo];
   const tonoPlus: Tono = equipo === 'local' ? 'primario' : 'azul';
+  const eq: 'l' | 'v' = equipo === 'local' ? 'l' : 'v';
 
   return (
     <div className={`rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ${a.ring} p-4 sm:p-5 space-y-4`}>
@@ -121,14 +128,14 @@ function BloqueEquipo({ m, equipo }: { m: Marcador; equipo: Lado }) {
       {/* Botones de puntos */}
       <div className="grid grid-cols-4 gap-2">
         {[1, 2, 3].map((d) => (
-          <FormBtn key={d} action={cambiarPuntos}>
+          <FormBtn key={d} action={fast(cambiarPuntos, { t: 'pts', eq, d })}>
             <HiddenId id={m.id} />
             <input type="hidden" name="equipo" value={equipo} />
             <input type="hidden" name="delta" value={d} />
             <Boton tono={tonoPlus} alto="alto" ancho="full">+{d}</Boton>
           </FormBtn>
         ))}
-        <FormBtn action={cambiarPuntos}>
+        <FormBtn action={fast(cambiarPuntos, { t: 'pts', eq, d: -1 })}>
           <HiddenId id={m.id} />
           <input type="hidden" name="equipo" value={equipo} />
           <input type="hidden" name="delta" value={-1} />
@@ -144,13 +151,13 @@ function BloqueEquipo({ m, equipo }: { m: Marcador; equipo: Lado }) {
             {faltas}
           </p>
           <div className="flex gap-2">
-            <FormBtn action={cambiarFaltas}>
+            <FormBtn action={fast(cambiarFaltas, { t: 'fal', eq, d: 1 })}>
               <HiddenId id={m.id} />
               <input type="hidden" name="equipo" value={equipo} />
               <input type="hidden" name="delta" value={1} />
               <Boton tono="neutro" ancho="full">+1</Boton>
             </FormBtn>
-            <FormBtn action={cambiarFaltas}>
+            <FormBtn action={fast(cambiarFaltas, { t: 'fal', eq, d: -1 })}>
               <HiddenId id={m.id} />
               <input type="hidden" name="equipo" value={equipo} />
               <input type="hidden" name="delta" value={-1} />
@@ -164,13 +171,13 @@ function BloqueEquipo({ m, equipo }: { m: Marcador; equipo: Lado }) {
             {timeouts}
           </p>
           <div className="flex gap-2">
-            <FormBtn action={cambiarTimeouts}>
+            <FormBtn action={fast(cambiarTimeouts, { t: 'to', eq, d: -1 })}>
               <HiddenId id={m.id} />
               <input type="hidden" name="equipo" value={equipo} />
               <input type="hidden" name="delta" value={-1} />
               <Boton tono="neutro" ancho="full">Pidió</Boton>
             </FormBtn>
-            <FormBtn action={cambiarTimeouts}>
+            <FormBtn action={fast(cambiarTimeouts, { t: 'to', eq, d: 1 })}>
               <HiddenId id={m.id} />
               <input type="hidden" name="equipo" value={equipo} />
               <input type="hidden" name="delta" value={1} />
@@ -200,16 +207,24 @@ function IconoPlay({ pausa }: { pausa: boolean }) {
 
 // ---- Componente principal ------------------------------------------------
 
+// Wrapper de acción que añade un broadcast predicho ANTES del Server Action y
+// aplica el evento optimistamente al estado local. Si el server diverge,
+// postgres_changes corrige al llegar (fuente de verdad). Tipado parametrizado
+// para no perder la firma del Server Action.
+type Accion = (fd: FormData) => void | Promise<void>;
+type FastFn = <A extends Accion>(accion: A, evOrFn: EventoFast | (() => EventoFast)) => A;
+
 export function ControlMarcador({ inicial }: { inicial: Marcador }) {
   const [m, setM] = useState<Marcador>(inicial);
   const [relojMs, setRelojMs] = useState(inicial.reloj_restante_ms);
   const [shotMs, setShotMs] = useState(inicial.shot_restante_ms);
   const rafRef = useRef<number | null>(null);
+  const fastRef = useRef<RealtimeChannel | null>(null);
 
-  // Realtime
+  // Realtime — postgres_changes para reconciliar + broadcast fast-lane (~30-80 ms).
   useEffect(() => {
     const supabase = createClient();
-    const ch = supabase
+    const chDb = supabase
       .channel(`marcador:${inicial.id}`)
       .on(
         'postgres_changes',
@@ -217,10 +232,27 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
         (payload) => setM(payload.new as Marcador),
       )
       .subscribe();
+    const chFast = supabase
+      .channel(canalFast(inicial.id))
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fastRef.current = chFast;
+      });
     return () => {
-      supabase.removeChannel(ch);
+      fastRef.current = null;
+      supabase.removeChannel(chDb);
+      supabase.removeChannel(chFast);
     };
   }, [inicial.id]);
+
+  const fast: FastFn = (accion, evOrFn) => {
+    return ((fd: FormData) => {
+      const ev = typeof evOrFn === 'function' ? evOrFn() : evOrFn;
+      // Optimistic local (control) + broadcast al visor.
+      setM((prev) => aplicarEventoFast(prev, ev));
+      fastRef.current?.send({ type: 'broadcast', event: 'ev', payload: ev });
+      return accion(fd);
+    }) as typeof accion;
+  };
 
   // Tick local
   useEffect(() => {
@@ -305,7 +337,7 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
                 {formatearReloj(relojMs)}
               </p>
               <div className="mt-2 flex justify-center lg:justify-start gap-2">
-                <FormBtn action={resetReloj}>
+                <FormBtn action={fast(resetReloj, { t: 'rReloj' })}>
                   <HiddenId id={m.id} />
                   <Boton tono="neutro">↻ Reset reloj</Boton>
                 </FormBtn>
@@ -316,7 +348,7 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
           {/* Play + Periodo. Play solo si hay algún cronómetro. */}
           <div className="flex flex-col items-center gap-3">
             {(conReloj || conShot) && (
-              <FormBtn action={togglePlay}>
+              <FormBtn action={fast(togglePlay, () => ({ t: 'play', nowMs: Date.now() }))}>
                 <HiddenId id={m.id} />
                 <button
                   type="submit"
@@ -333,7 +365,7 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
             )}
             {conPeriodo && (
               <div className="flex items-center gap-2">
-                <FormBtn action={cambiarPeriodo}>
+                <FormBtn action={fast(cambiarPeriodo, { t: 'per', d: -1 })}>
                   <HiddenId id={m.id} />
                   <input type="hidden" name="delta" value={-1} />
                   <Boton tono="neutro">−Q</Boton>
@@ -341,7 +373,7 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
                 <span className="font-orbitron font-bold text-2xl text-orange-300 min-w-[3.5rem] text-center">
                   {periodoEtiqueta}
                 </span>
-                <FormBtn action={cambiarPeriodo}>
+                <FormBtn action={fast(cambiarPeriodo, { t: 'per', d: 1 })}>
                   <HiddenId id={m.id} />
                   <input type="hidden" name="delta" value={1} />
                   <Boton tono="neutro">+Q</Boton>
@@ -349,8 +381,9 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
               </div>
             )}
             {/* Bocina manual: incrementa bocina_pulsos; el visor lo escucha
-                por Realtime y suena la chicharra. */}
-            <FormBtn action={sonarBocina}>
+                por Realtime y suena la chicharra. El broadcast la dispara
+                ~250 ms antes que postgres_changes. */}
+            <FormBtn action={fast(sonarBocina, { t: 'bocina' })}>
               <HiddenId id={m.id} />
               <Boton tono="primario">🔔 Bocina</Boton>
             </FormBtn>
@@ -373,12 +406,12 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
                 {Math.ceil(shotMs / 1000)}
               </p>
               <div className="mt-2 flex justify-center lg:justify-end gap-2">
-                <FormBtn action={resetShot}>
+                <FormBtn action={fast(resetShot, () => ({ t: 'rShot', seg: 24, nowMs: Date.now() }))}>
                   <HiddenId id={m.id} />
                   <input type="hidden" name="segundos" value={24} />
                   <Boton tono="primario">↻ 24</Boton>
                 </FormBtn>
-                <FormBtn action={resetShot}>
+                <FormBtn action={fast(resetShot, () => ({ t: 'rShot', seg: 14, nowMs: Date.now() }))}>
                   <HiddenId id={m.id} />
                   <input type="hidden" name="segundos" value={14} />
                   <Boton tono="primario">↻ 14</Boton>
@@ -391,8 +424,8 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
 
       {/* Equipos */}
       <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
-        <BloqueEquipo m={m} equipo="local" />
-        <BloqueEquipo m={m} equipo="visitante" />
+        <BloqueEquipo m={m} equipo="local" fast={fast} />
+        <BloqueEquipo m={m} equipo="visitante" fast={fast} />
       </div>
 
       {/* Configuración: renombrar + reinicio */}
