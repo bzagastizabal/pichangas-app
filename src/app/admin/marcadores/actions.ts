@@ -25,6 +25,7 @@ export async function crearMarcador(
   // están desmarcados → flag = false.
   const tiene_reloj_periodo = formData.get('tiene_reloj_periodo') === 'on';
   const tiene_shot_clock = formData.get('tiene_shot_clock') === 'on';
+  const tiene_periodo = formData.get('tiene_periodo') === 'on';
   const minutos = Math.max(1, parseInt((formData.get('duracion_min') as string) || '10', 10));
   const shotSeg = Math.max(1, parseInt((formData.get('shot_seg') as string) || '24', 10));
   const horas = Math.max(1, parseInt((formData.get('horas_expiracion') as string) || '24', 10));
@@ -40,6 +41,7 @@ export async function crearMarcador(
     shot_restante_ms: shotSeg * 1000,
     tiene_reloj_periodo,
     tiene_shot_clock,
+    tiene_periodo,
     expira_en: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
     creado_por: perfil.id,
   };
@@ -48,11 +50,12 @@ export async function crearMarcador(
     .insert(baseInsert)
     .select('id')
     .single();
-  // Si todavía no se corrió SQL 22, repetimos sin los flags opcionales.
-  if (error && /tiene_(reloj_periodo|shot_clock)/.test(error.message)) {
+  // Si todavía no se corrió SQL 22/29, repetimos sin los flags opcionales.
+  if (error && /tiene_(reloj_periodo|shot_clock|periodo)/.test(error.message)) {
     const sinFlags = { ...baseInsert };
     delete (sinFlags as Record<string, unknown>).tiene_reloj_periodo;
     delete (sinFlags as Record<string, unknown>).tiene_shot_clock;
+    delete (sinFlags as Record<string, unknown>).tiene_periodo;
     const r = await supabase.from('marcadores').insert(sinFlags).select('id').single();
     data = r.data;
     error = r.error;

@@ -12,6 +12,8 @@ export function CrearMarcadorForm() {
   const [estado, formAction, pending] = useActionState(crearMarcador, {});
   const [conReloj, setConReloj] = useState(true);
   const [conShot, setConShot] = useState(true);
+  const [conPeriodo, setConPeriodo] = useState(true);
+  const modoMinimo = !conReloj && !conShot && !conPeriodo;
 
   return (
     <form action={formAction} className="grid gap-3 sm:grid-cols-2">
@@ -71,7 +73,24 @@ export function CrearMarcadorForm() {
           </div>
         )}
 
-        {!conReloj && !conShot && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="tiene_periodo"
+            checked={conPeriodo}
+            onChange={(e) => setConPeriodo(e.target.checked)}
+          />
+          <span className="font-medium">Con indicador de periodo (Q)</span>
+          <span className="text-xs text-tenue">(Q1, Q2, OT1…)</span>
+        </label>
+
+        {modoMinimo && (
+          <p className="text-xs text-amber-300 pl-6">
+            Modo "máximo simple": solo nombres y puntajes. Los números y los
+            nombres de equipo se renderizan más grandes para llenar la pantalla.
+          </p>
+        )}
+        {!conReloj && !conShot && conPeriodo && (
           <p className="text-xs text-amber-300 pl-6">
             Modo "solo contar puntos": el marcador mostrará nombres, periodo y puntaje.
           </p>

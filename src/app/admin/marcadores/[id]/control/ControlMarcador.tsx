@@ -241,6 +241,7 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
   // Fallback para marcadores creados antes de SQL 22 (los flags llegan nulos).
   const conReloj: boolean = m.tiene_reloj_periodo ?? true;
   const conShot: boolean = m.tiene_shot_clock ?? true;
+  const conPeriodo: boolean = m.tiene_periodo ?? true;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -330,21 +331,23 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
                 </button>
               </FormBtn>
             )}
-            <div className="flex items-center gap-2">
-              <FormBtn action={cambiarPeriodo}>
-                <HiddenId id={m.id} />
-                <input type="hidden" name="delta" value={-1} />
-                <Boton tono="neutro">−Q</Boton>
-              </FormBtn>
-              <span className="font-orbitron font-bold text-2xl text-orange-300 min-w-[3.5rem] text-center">
-                {periodoEtiqueta}
-              </span>
-              <FormBtn action={cambiarPeriodo}>
-                <HiddenId id={m.id} />
-                <input type="hidden" name="delta" value={1} />
-                <Boton tono="neutro">+Q</Boton>
-              </FormBtn>
-            </div>
+            {conPeriodo && (
+              <div className="flex items-center gap-2">
+                <FormBtn action={cambiarPeriodo}>
+                  <HiddenId id={m.id} />
+                  <input type="hidden" name="delta" value={-1} />
+                  <Boton tono="neutro">−Q</Boton>
+                </FormBtn>
+                <span className="font-orbitron font-bold text-2xl text-orange-300 min-w-[3.5rem] text-center">
+                  {periodoEtiqueta}
+                </span>
+                <FormBtn action={cambiarPeriodo}>
+                  <HiddenId id={m.id} />
+                  <input type="hidden" name="delta" value={1} />
+                  <Boton tono="neutro">+Q</Boton>
+                </FormBtn>
+              </div>
+            )}
             {/* Bocina manual: incrementa bocina_pulsos; el visor lo escucha
                 por Realtime y suena la chicharra. */}
             <FormBtn action={sonarBocina}>
