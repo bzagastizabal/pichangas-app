@@ -68,10 +68,20 @@ function PanelEquipo({
   const flash = useFlashAlCambiar(puntos);
   const acento = ACENTO[lado];
 
+  // En mega escalamos según la cantidad de dígitos del puntaje para que dos
+  // o tres dígitos no se desborden del panel (cada panel = 50vw en landscape).
+  // Para nombre y puntaje usamos min(vh, vw) — vh limita la altura disponible
+  // y vw limita el ancho del panel para no chocar con el panel de al lado.
+  const digitos = Math.max(1, String(Math.max(0, puntos)).length);
+  const vwPunto = digitos === 1 ? 36 : digitos === 2 ? 28 : 22;
+
   return (
     <div
       className="relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl bg-gradient-to-b from-white/[0.035] to-white/[0.005] ring-1 ring-white/10 backdrop-blur-sm"
-      style={{ padding: 'clamp(0.75rem, 2vmin, 3rem)' }}
+      style={{
+        // En mega usamos casi nada de padding para liberar espacio al puntaje.
+        padding: mega ? 'clamp(0.15rem, 0.4vmin, 0.6rem)' : 'clamp(0.75rem, 2vmin, 3rem)',
+      }}
     >
       {/* Indicador de acento + nombre — más prominente para identificar al equipo */}
       <div className="flex items-center gap-[1.2vmin] max-w-full">
@@ -83,8 +93,10 @@ function PanelEquipo({
         <p
           className="uppercase tracking-[0.18em] font-bold text-white truncate"
           style={{
+            // min(vh,vw) protege contra desborde horizontal del nombre en mega
+            // landscape donde el panel mide ~50vw.
             fontSize: mega
-              ? 'clamp(1.8rem, 8vmin, 11rem)'
+              ? 'clamp(1.8rem, min(13vh, 5vw), 16rem)'
               : 'clamp(1.1rem, 5vmin, 7rem)',
           }}
         >
@@ -92,16 +104,18 @@ function PanelEquipo({
         </p>
       </div>
 
-      {/* Puntaje gigante: usa vmin para escalar con la dimensión más chica
-          (ideal cuando el visor se proyecta en TV horizontal o portrait phone).
-          En modo mega (sin hero arriba) se hace ~30% más grande. */}
+      {/* Puntaje gigante. En mega escalamos por dígitos y limitamos por vw
+          para que no se choquen los dos paneles. vh marca el alto, vw el
+          ancho disponible en cada panel (~50vw en 2 columnas). */}
       <p
         className={`font-orbitron font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
         style={{
           fontSize: mega
-            ? 'clamp(7rem, 44vmin, 56rem)'
+            ? `clamp(7rem, min(72vh, ${vwPunto}vw), 100rem)`
             : 'clamp(5rem, 32vmin, 40rem)',
-          marginTop: 'clamp(0.5rem, 1.5vmin, 2rem)',
+          marginTop: mega
+            ? 'clamp(0.1rem, 0.3vmin, 0.6rem)'
+            : 'clamp(0.5rem, 1.5vmin, 2rem)',
           color: '#ffffff',
           textShadow: acento.glow,
           letterSpacing: '-0.02em',
@@ -503,10 +517,12 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             conShot ? 'sm:grid-cols-[1fr_auto_1fr]' : 'sm:grid-cols-2'
           }`}
           style={{
-            gap: 'clamp(0.5rem, 1.5vmin, 1.5rem)',
-            paddingLeft: 'clamp(0.5rem, 1.5vmin, 2rem)',
-            paddingRight: 'clamp(0.5rem, 1.5vmin, 2rem)',
-            paddingBottom: 'clamp(0.5rem, 1.5vmin, 2rem)',
+            // En mega minimizamos gap y padding para liberar todo el ancho
+            // posible a los paneles (cada uno = 50vw - gap/2).
+            gap: modoMega ? 'clamp(0.15rem, 0.3vmin, 0.5rem)' : 'clamp(0.5rem, 1.5vmin, 1.5rem)',
+            paddingLeft: modoMega ? 'clamp(0.25rem, 0.6vmin, 0.75rem)' : 'clamp(0.5rem, 1.5vmin, 2rem)',
+            paddingRight: modoMega ? 'clamp(0.25rem, 0.6vmin, 0.75rem)' : 'clamp(0.5rem, 1.5vmin, 2rem)',
+            paddingBottom: modoMega ? 'clamp(0.25rem, 0.6vmin, 0.75rem)' : 'clamp(0.5rem, 1.5vmin, 2rem)',
           }}
         >
           <PanelEquipo
