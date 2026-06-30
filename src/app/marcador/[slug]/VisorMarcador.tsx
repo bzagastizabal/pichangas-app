@@ -60,14 +60,17 @@ function PanelEquipo({
   timeouts,
   lado,
   mega = false,
+  colorNombre,
 }: {
   nombre: string;
   puntos: number;
   faltas: number;
   timeouts: number;
   lado: Lado;
-  // mega = sin reloj, sin shot y sin Q → nombre y puntaje más grandes.
+  // mega = sin reloj, sin shot y sin Q → nombre y puntaje al máximo.
   mega?: boolean;
+  // Color HEX del texto del nombre (configurable desde el control).
+  colorNombre?: string | null;
 }) {
   const bonus = faltas >= 4;
   const flash = useFlashAlCambiar(puntos);
@@ -79,6 +82,9 @@ function PanelEquipo({
   // y vw limita el ancho del panel para no chocar con el panel de al lado.
   const digitos = Math.max(1, String(Math.max(0, puntos)).length);
   const vwPunto = digitos === 1 ? 36 : digitos === 2 ? 28 : 22;
+  const colorTxt = colorNombre && /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(colorNombre)
+    ? colorNombre
+    : '#ffffff';
 
   return (
     <div
@@ -96,8 +102,9 @@ function PanelEquipo({
           aria-hidden
         />
         <p
-          className="uppercase tracking-[0.18em] font-bold text-white truncate"
+          className="uppercase tracking-[0.18em] font-bold truncate"
           style={{
+            color: colorTxt,
             // min(vh,vw) protege contra desborde horizontal del nombre en mega
             // landscape donde el panel mide ~50vw.
             fontSize: mega
@@ -115,8 +122,10 @@ function PanelEquipo({
       <p
         className={`font-orbitron font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
         style={{
+          // En mega subimos el techo a 88vh (sin pills/header/footer hay más
+          // alto disponible) — el ancho lo sigue limitando vwPunto por dígitos.
           fontSize: mega
-            ? `clamp(7rem, min(72vh, ${vwPunto}vw), 100rem)`
+            ? `clamp(8rem, min(88vh, ${vwPunto}vw), 120rem)`
             : 'clamp(5rem, 32vmin, 40rem)',
           marginTop: mega
             ? 'clamp(0.1rem, 0.3vmin, 0.6rem)'
@@ -129,7 +138,8 @@ function PanelEquipo({
         {puntos}
       </p>
 
-      {/* Faltas + Timeouts */}
+      {/* Faltas + Timeouts — en mega se ocultan para liberar todo el alto al puntaje. */}
+      {!mega && (
       <div
         className="flex flex-wrap items-center justify-center gap-2 sm:gap-3"
         style={{ marginTop: 'clamp(0.5rem, 1.5vmin, 2rem)' }}
@@ -158,6 +168,7 @@ function PanelEquipo({
           <span className="font-mono font-bold text-base sm:text-lg">{timeouts}</span>
         </span>
       </div>
+      )}
     </div>
   );
 }
@@ -363,9 +374,40 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         aria-hidden
       />
 
+      {/* Botones flotantes (siempre disponibles, también en mega): sonido + fullscreen. */}
+      {modoMega && (
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 opacity-30 hover:opacity-100 transition">
+          <button
+            type="button"
+            onClick={alternarSonido}
+            aria-label={sonidoOn ? 'Silenciar sonido' : 'Activar sonido'}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 transition ${
+              sonidoOn
+                ? 'bg-green-500/15 ring-green-400/40 text-green-300'
+                : 'bg-white/5 ring-white/15 text-zinc-400'
+            }`}
+            title={sonidoOn ? 'Silenciar' : 'Activar sonido'}
+          >
+            <span className="text-base">{sonidoOn ? '🔊' : '🔇'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={pantallaCompleta}
+            aria-label="Pantalla completa"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/15 text-zinc-300"
+            title="Pantalla completa"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+              <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Contenido encima */}
       <div className="relative z-10 flex min-h-[100dvh] flex-col">
-        {/* HEADER — padding y fuentes fluidas; en xs se oculta el subtítulo. */}
+        {/* HEADER — se oculta en mega para liberar todo el alto al puntaje. */}
+        {!modoMega && (
         <header
           className="flex items-center justify-between"
           style={{
@@ -453,6 +495,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             </button>
           </div>
         </header>
+        )}
 
         {/* HERO: Tiempo (con o sin Q label encima) o Q gigante o nada — depende
             de los flags. Cuando se ocultan los tres (reloj, shot, Q), el hero
@@ -547,6 +590,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             timeouts={m.timeouts_local}
             lado="local"
             mega={modoMega}
+            colorNombre={m.color_local}
           />
           {conShot && (
             <div className="order-first sm:order-none sm:flex sm:items-center">
@@ -560,10 +604,12 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             timeouts={m.timeouts_visitante}
             lado="visitante"
             mega={modoMega}
+            colorNombre={m.color_visitante}
           />
         </div>
 
-        {/* FOOTER — alto fijo bajo, no roba espacio al hero del marcador. */}
+        {/* FOOTER — se oculta en mega para liberar todo el alto al puntaje. */}
+        {!modoMega && (
         <footer
           className="text-zinc-600 text-center uppercase tracking-[0.3em]"
           style={{
@@ -582,6 +628,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
           <span className="mx-3 text-zinc-700">·</span>
           <span className="text-zinc-600">pichangas.cmt</span>
         </footer>
+        )}
       </div>
     </div>
   );

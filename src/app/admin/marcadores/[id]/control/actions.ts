@@ -164,17 +164,28 @@ export async function cambiarPeriodo(formData: FormData): Promise<void> {
     .eq('id', id);
 }
 
+// Acepta también color del nombre por equipo (SQL 30). Si las columnas aún no
+// existen, reintenta sin ellas para no bloquear al admin.
 export async function renombrarEquipos(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = formData.get('id') as string;
   const nombre_local = ((formData.get('nombre_local') as string) || '').trim();
   const nombre_visitante = ((formData.get('nombre_visitante') as string) || '').trim();
   if (!id || !nombre_local || !nombre_visitante) return;
+  const hex = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
+  const cl_raw = ((formData.get('color_local') as string) || '').trim();
+  const cv_raw = ((formData.get('color_visitante') as string) || '').trim();
+  const color_local = hex.test(cl_raw) ? cl_raw : '#ffffff';
+  const color_visitante = hex.test(cv_raw) ? cv_raw : '#ffffff';
   const supabase = await createClient();
-  await supabase
-    .from('marcadores')
-    .update({ nombre_local, nombre_visitante })
-    .eq('id', id);
+  const upd = { nombre_local, nombre_visitante, color_local, color_visitante };
+  const r = await supabase.from('marcadores').update(upd).eq('id', id);
+  if (r.error && /color_(local|visitante)/.test(r.error.message)) {
+    await supabase
+      .from('marcadores')
+      .update({ nombre_local, nombre_visitante })
+      .eq('id', id);
+  }
   refresh();
 }
 

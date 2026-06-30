@@ -324,6 +324,9 @@ export type Marcador = {
   // Contador monotónico que el admin incrementa para sonar la bocina remota
   // en el visor. SQL 28.
   bocina_pulsos: number;
+  // Color HEX del nombre de cada equipo en el visor (SQL 30). Default '#ffffff'.
+  color_local: string;
+  color_visitante: string;
   expira_en: string;
   creado_por: string;
   created_at: string;

@@ -434,21 +434,39 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
           <HiddenId id={m.id} />
           <div>
             <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">Nombre LOCAL</label>
-            <input
-              name="nombre_local"
-              defaultValue={m.nombre_local}
-              className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-full"
-            />
+            <div className="flex items-stretch gap-2">
+              <input
+                name="nombre_local"
+                defaultValue={m.nombre_local}
+                className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-full"
+              />
+              <input
+                name="color_local"
+                type="color"
+                defaultValue={m.color_local ?? '#ffffff'}
+                title="Color del texto del nombre LOCAL"
+                className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-borde bg-campo p-1"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">Nombre VISITANTE</label>
-            <input
-              name="nombre_visitante"
-              defaultValue={m.nombre_visitante}
-              className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-full"
-            />
+            <div className="flex items-stretch gap-2">
+              <input
+                name="nombre_visitante"
+                defaultValue={m.nombre_visitante}
+                className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-full"
+              />
+              <input
+                name="color_visitante"
+                type="color"
+                defaultValue={m.color_visitante ?? '#ffffff'}
+                title="Color del texto del nombre VISITANTE"
+                className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-borde bg-campo p-1"
+              />
+            </div>
           </div>
-          <Boton tono="primario">Guardar nombres</Boton>
+          <Boton tono="primario">Guardar</Boton>
         </form>
         <form action={reiniciarPartido}>
           <HiddenId id={m.id} />
