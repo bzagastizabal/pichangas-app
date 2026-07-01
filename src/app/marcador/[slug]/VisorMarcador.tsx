@@ -53,6 +53,26 @@ function useFlashAlCambiar<T>(valor: T, duracionMs = 700): boolean {
   return activo;
 }
 
+// Sync con SQL 31 + globals.css. Devuelve la clase Tailwind para la fuente.
+const FUENTE_CLS: Record<string, string> = {
+  orbitron:   'font-orbitron',
+  bebas:      'font-bebas',
+  anton:      'font-anton',
+  iceland:    'font-iceland',
+  rubik_mono: 'font-rubik-mono',
+};
+
+// Ratio empírico ancho-glifo / font-size en 'font-black' + tabular-nums (medido
+// en 4K). Orbitron y Rubik Mono son casi cuadradas; Bebas/Anton condensed; Iceland
+// medio. Sirve para calcular el vw máximo por dígito sin desbordar el panel.
+const RATIO_GLIFO: Record<string, number> = {
+  orbitron:   0.57,
+  bebas:      0.36,
+  anton:      0.48,
+  iceland:    0.50,
+  rubik_mono: 0.80,
+};
+
 function PanelEquipo({
   nombre,
   puntos,
@@ -61,6 +81,8 @@ function PanelEquipo({
   lado,
   mega = false,
   colorNombre,
+  colorPuntos,
+  fuente = 'orbitron',
 }: {
   nombre: string;
   puntos: number;
@@ -71,6 +93,8 @@ function PanelEquipo({
   mega?: boolean;
   // Color HEX del texto del nombre (configurable desde el control).
   colorNombre?: string | null;
+  colorPuntos?: string | null;
+  fuente?: string;
 }) {
   const bonus = faltas >= 4;
   const flash = useFlashAlCambiar(puntos);
@@ -81,10 +105,16 @@ function PanelEquipo({
   // Para nombre y puntaje usamos min(vh, vw) — vh limita la altura disponible
   // y vw limita el ancho del panel para no chocar con el panel de al lado.
   const digitos = Math.max(1, String(Math.max(0, puntos)).length);
-  const vwPunto = digitos === 1 ? 36 : digitos === 2 ? 28 : 22;
-  const colorTxt = colorNombre && /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(colorNombre)
-    ? colorNombre
-    : '#ffffff';
+  const ratio = RATIO_GLIFO[fuente] ?? RATIO_GLIFO.orbitron;
+  // Panel útil ≈ 49vw. Apuntamos a que el número ocupe ~80% del panel
+  // (deja ~10% de margen a cada lado para que 87 - 74 no se toquen en el
+  // centro). vwFont * digitos * ratio ≈ 38vw → vwFont = 38 / (digitos*ratio).
+  // Cap alto por si es 1 dígito (evita gigantismo desproporcionado).
+  const vwPunto = Math.min(55, Math.floor(38 / (digitos * ratio)));
+  const HEX = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
+  const colorTxt = colorNombre && HEX.test(colorNombre) ? colorNombre : '#ffffff';
+  const colorPts = colorPuntos && HEX.test(colorPuntos) ? colorPuntos : '#ffffff';
+  const fuenteCls = FUENTE_CLS[fuente] ?? FUENTE_CLS.orbitron;
 
   return (
     <div
@@ -120,17 +150,17 @@ function PanelEquipo({
           para que no se choquen los dos paneles. vh marca el alto, vw el
           ancho disponible en cada panel (~50vw en 2 columnas). */}
       <p
-        className={`font-orbitron font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
+        className={`${fuenteCls} font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
         style={{
-          // En mega subimos el techo a 88vh (sin pills/header/footer hay más
-          // alto disponible) — el ancho lo sigue limitando vwPunto por dígitos.
+          // En mega crecemos al máximo: min(92vh, vwPunto*vw). vwPunto se
+          // calcula por dígitos × ratio del glifo de la fuente elegida.
           fontSize: mega
-            ? `clamp(8rem, min(88vh, ${vwPunto}vw), 120rem)`
+            ? `clamp(8rem, min(92vh, ${vwPunto}vw), 140rem)`
             : 'clamp(5rem, 32vmin, 40rem)',
           marginTop: mega
-            ? 'clamp(0.1rem, 0.3vmin, 0.6rem)'
+            ? 'clamp(0.05rem, 0.2vmin, 0.4rem)'
             : 'clamp(0.5rem, 1.5vmin, 2rem)',
-          color: '#ffffff',
+          color: colorPts,
           textShadow: acento.glow,
           letterSpacing: '-0.02em',
         }}
@@ -175,7 +205,7 @@ function PanelEquipo({
 
 // ---- Shot clock central --------------------------------------------------
 
-function ShotClock({ ms }: { ms: number }) {
+function ShotClock({ ms, fuenteCls = 'font-orbitron' }: { ms: number; fuenteCls?: string }) {
   const segundos = Math.max(0, Math.ceil(ms / 1000));
   const peligro = ms < 5000;
   return (
@@ -193,7 +223,7 @@ function ShotClock({ ms }: { ms: number }) {
         Shot
       </p>
       <div
-        className={`font-orbitron font-black tabular-nums leading-none ${peligro ? 'animate-glow-soft' : ''}`}
+        className={`${fuenteCls} font-black tabular-nums leading-none ${peligro ? 'animate-glow-soft' : ''}`}
         style={{
           fontSize: 'clamp(2.75rem, 14vmin, 20rem)',
           color: peligro ? '#ef4444' : '#fbbf24',
@@ -337,15 +367,24 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   // crecen para ocupar el espacio liberado.
   const modoMega = !conReloj && !conShot && !conPeriodo;
 
+  // Estilo configurable (SQL 31). Fallbacks para marcadores previos.
+  const fuenteM = (m.fuente as string) ?? 'orbitron';
+  const fuenteClsM = FUENTE_CLS[fuenteM] ?? FUENTE_CLS.orbitron;
+  const HEX = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
+  const colorFondoM = m.color_fondo && HEX.test(m.color_fondo) ? m.color_fondo : '#000000';
+
   return (
     <div
       ref={rootRef}
       onDoubleClick={pantallaCompleta}
-      className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white select-none"
+      className="relative min-h-[100dvh] w-full overflow-hidden text-white select-none"
       style={{
+        backgroundColor: colorFondoM,
+        // Vignette sutil por encima del color de fondo — mantiene la sensación
+        // "de estadio" sin apagar el color elegido por el admin.
         backgroundImage:
-          'radial-gradient(ellipse at top, rgba(39,39,42,0.7), transparent 70%),' +
-          'radial-gradient(ellipse at bottom, rgba(20,20,24,1), rgba(0,0,0,1))',
+          'radial-gradient(ellipse at top, rgba(255,255,255,0.06), transparent 70%),' +
+          'radial-gradient(ellipse at bottom, rgba(0,0,0,0.35), transparent 70%)',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
         paddingLeft: 'env(safe-area-inset-left)',
@@ -517,7 +556,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
                     className="inline-flex items-baseline gap-3 uppercase tracking-[0.45em]"
                     style={{ fontSize: 'clamp(0.85rem, 2.2vmin, 2.5rem)' }}
                   >
-                    <span className="font-orbitron font-black text-orange-400">
+                    <span className={`${fuenteClsM} font-black text-orange-400`}>
                       {periodoEtiqueta}
                     </span>
                     <span className="text-zinc-600">·</span>
@@ -525,7 +564,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
                   </div>
                 )}
                 <p
-                  className={`font-orbitron font-black tabular-nums leading-none ${
+                  className={`${fuenteClsM} font-black tabular-nums leading-none ${
                     relojBajo ? 'animate-glow-soft' : ''
                   }`}
                   style={{
@@ -551,7 +590,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
                   Periodo
                 </p>
                 <p
-                  className="font-orbitron font-black tabular-nums leading-none text-orange-400"
+                  className={`${fuenteClsM} font-black tabular-nums leading-none text-orange-400`}
                   style={{
                     marginTop: 'clamp(0.15rem, 0.6vmin, 0.8rem)',
                     fontSize: 'clamp(5rem, 30vmin, 38rem)',
@@ -591,10 +630,12 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             lado="local"
             mega={modoMega}
             colorNombre={m.color_local}
+            colorPuntos={m.color_puntos_local}
+            fuente={fuenteM}
           />
           {conShot && (
             <div className="order-first sm:order-none sm:flex sm:items-center">
-              <ShotClock ms={shotMs} />
+              <ShotClock ms={shotMs} fuenteCls={fuenteClsM} />
             </div>
           )}
           <PanelEquipo
@@ -605,6 +646,8 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             lado="visitante"
             mega={modoMega}
             colorNombre={m.color_visitante}
+            colorPuntos={m.color_puntos_visitante}
+            fuente={fuenteM}
           />
         </div>
 

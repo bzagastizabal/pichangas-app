@@ -16,6 +16,10 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-orbitron: var(--font-orbitron-css);
+  --font-bebas: var(--font-bebas-css);
+  --font-anton: var(--font-anton-css);
+  --font-iceland: var(--font-iceland-css);
+  --font-rubik-mono: var(--font-rubik-mono-css);
 }
 
 body {

@@ -189,6 +189,32 @@ export async function renombrarEquipos(formData: FormData): Promise<void> {
   refresh();
 }
 
+// Actualiza estilo visual del marcador (SQL 31). Fallback si columnas ausentes.
+const FUENTES_VALIDAS = new Set(['orbitron', 'bebas', 'anton', 'iceland', 'rubik_mono']);
+const HEX = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
+export async function actualizarEstilo(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  const fuenteRaw = ((formData.get('fuente') as string) || '').trim();
+  const cplRaw = ((formData.get('color_puntos_local') as string) || '').trim();
+  const cpvRaw = ((formData.get('color_puntos_visitante') as string) || '').trim();
+  const cfRaw  = ((formData.get('color_fondo') as string) || '').trim();
+  const upd: Record<string, string> = {
+    fuente: FUENTES_VALIDAS.has(fuenteRaw) ? fuenteRaw : 'orbitron',
+    color_puntos_local:     HEX.test(cplRaw) ? cplRaw : '#ffffff',
+    color_puntos_visitante: HEX.test(cpvRaw) ? cpvRaw : '#ffffff',
+    color_fondo:            HEX.test(cfRaw)  ? cfRaw  : '#000000',
+  };
+  const supabase = await createClient();
+  const r = await supabase.from('marcadores').update(upd).eq('id', id);
+  if (r.error && /fuente|color_puntos|color_fondo/.test(r.error.message)) {
+    // Columnas aún no creadas: no bloquear al admin.
+    return;
+  }
+  refresh();
+}
+
 // Suena la bocina: incrementa el contador bocina_pulsos en el marcador.
 // El visor lo escucha por Realtime y reproduce el horn al detectar el cambio.
 export async function sonarBocina(formData: FormData): Promise<void> {

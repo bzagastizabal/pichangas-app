@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Orbitron } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Orbitron,
+  Bebas_Neue,
+  Anton,
+  Iceland,
+  Rubik_Mono_One,
+} from "next/font/google";
 import "./globals.css";
 import { BotonAyuda } from "./BotonAyuda";
 
@@ -13,13 +21,38 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Tipografía estilo "scoreboard LED" para los marcadores. display: swap evita
-// FOIT (parpadeo blanco mientras carga).
+// Familia de fuentes disponibles en el marcador. display: swap evita FOIT.
+// Los pesos se piden solo cuando la fuente los tiene (Bebas/Anton/Iceland/Rubik
+// Mono One son de un solo peso).
 const orbitron = Orbitron({
   variable: "--font-orbitron-css",
   subsets: ["latin"],
   display: "swap",
   weight: ["500", "700", "900"],
+});
+const bebas = Bebas_Neue({
+  variable: "--font-bebas-css",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400"],
+});
+const anton = Anton({
+  variable: "--font-anton-css",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400"],
+});
+const iceland = Iceland({
+  variable: "--font-iceland-css",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400"],
+});
+const rubikMono = Rubik_Mono_One({
+  variable: "--font-rubik-mono-css",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400"],
 });
 
 // Base absoluta para resolver imagenes y enlaces de Open Graph. WhatsApp/Twitter
@@ -63,7 +96,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${bebas.variable} ${anton.variable} ${iceland.variable} ${rubikMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

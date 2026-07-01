@@ -16,6 +16,7 @@ import {
   type EventoFast,
 } from '@/lib/marcador-broadcast';
 import {
+  actualizarEstilo,
   cambiarFaltas,
   cambiarPeriodo,
   cambiarPuntos,
@@ -27,6 +28,20 @@ import {
   sonarBocina,
   togglePlay,
 } from './actions';
+
+// Catálogo de fuentes disponibles (sync con SQL 31 y next/font en layout).
+const FUENTES: Array<{
+  key: 'orbitron' | 'bebas' | 'anton' | 'iceland' | 'rubik_mono';
+  label: string;
+  cls: string;
+  demo: string;
+}> = [
+  { key: 'orbitron',   label: 'Orbitron',      cls: 'font-orbitron',   demo: '88' },
+  { key: 'bebas',      label: 'Bebas Neue',    cls: 'font-bebas',      demo: '88' },
+  { key: 'anton',      label: 'Anton',         cls: 'font-anton',      demo: '88' },
+  { key: 'iceland',    label: 'Iceland',       cls: 'font-iceland',    demo: '88' },
+  { key: 'rubik_mono', label: 'Rubik Mono',    cls: 'font-rubik-mono', demo: '88' },
+];
 
 // ---- Helpers de botones --------------------------------------------------
 
@@ -468,6 +483,86 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
           </div>
           <Boton tono="primario">Guardar</Boton>
         </form>
+
+        {/* Estilo del marcador (SQL 31) — fuente, color de puntos por equipo y fondo. */}
+        <form action={actualizarEstilo} className="space-y-3 border-t border-white/5 pt-4">
+          <HiddenId id={m.id} />
+          <div>
+            <label className="block text-xs text-tenue mb-2 uppercase tracking-widest">
+              Fuente de los números
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {FUENTES.map((f) => {
+                const activa = (m.fuente ?? 'orbitron') === f.key;
+                return (
+                  <label
+                    key={f.key}
+                    className={`cursor-pointer rounded-xl px-2 py-3 text-center ring-1 transition ${
+                      activa
+                        ? 'bg-orange-600/20 ring-orange-500/50'
+                        : 'bg-black/30 ring-white/10 hover:bg-black/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="fuente"
+                      value={f.key}
+                      defaultChecked={activa}
+                      className="sr-only"
+                    />
+                    <div className={`${f.cls} text-3xl leading-none tabular-nums text-white`}>
+                      {f.demo}
+                    </div>
+                    <div className="mt-1 text-[0.65rem] uppercase tracking-widest text-tenue">
+                      {f.label}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+                Puntos LOCAL
+              </label>
+              <input
+                name="color_puntos_local"
+                type="color"
+                defaultValue={m.color_puntos_local ?? '#ffffff'}
+                className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+                Puntos VISITANTE
+              </label>
+              <input
+                name="color_puntos_visitante"
+                type="color"
+                defaultValue={m.color_puntos_visitante ?? '#ffffff'}
+                className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+                Fondo
+              </label>
+              <input
+                name="color_fondo"
+                type="color"
+                defaultValue={m.color_fondo ?? '#000000'}
+                className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Boton tono="primario">Aplicar estilo</Boton>
+          </div>
+        </form>
+
         <form action={reiniciarPartido}>
           <HiddenId id={m.id} />
           <button

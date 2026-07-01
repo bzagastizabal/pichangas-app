@@ -327,6 +327,11 @@ export type Marcador = {
   // Color HEX del nombre de cada equipo en el visor (SQL 30). Default '#ffffff'.
   color_local: string;
   color_visitante: string;
+  // Estilo del marcador (SQL 31): fuente + color del puntaje por equipo + fondo.
+  fuente: 'orbitron' | 'bebas' | 'anton' | 'iceland' | 'rubik_mono';
+  color_puntos_local: string;
+  color_puntos_visitante: string;
+  color_fondo: string;
   expira_en: string;
   creado_por: string;
   created_at: string;
