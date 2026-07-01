@@ -156,11 +156,14 @@ function PanelEquipo({
         style={{
           // En mega crecemos al máximo: min(92vh, vwPunto*vw). vwPunto se
           // calcula por dígitos × ratio del glifo de la fuente elegida.
+          // Score cap 88vh en mega para dejar aire entre nombre y numero
+          // (antes 92vh, pero la fuente LED extiende segmentos hasta el
+          // limite superior del line-box y se pega al nombre).
           fontSize: mega
-            ? `clamp(8rem, min(92vh, ${vwPunto}vw), 140rem)`
+            ? `clamp(8rem, min(88vh, ${vwPunto}vw), 140rem)`
             : 'clamp(5rem, 32vmin, 40rem)',
           marginTop: mega
-            ? 'clamp(0.05rem, 0.2vmin, 0.4rem)'
+            ? 'clamp(1rem, 3vmin, 4rem)'
             : 'clamp(0.5rem, 1.5vmin, 2rem)',
           color: colorPts,
           textShadow: acento.glow,
