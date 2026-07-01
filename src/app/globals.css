@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* DSEG7 Classic Bold — fuente 7-segmentos real (SIL OFL) para el marcador.
+   Self-hosted en /public/fonts/. Alta contraste para proyectores de bajos
+   lumenes cuando se combina con color rojo/ambar sobre fondo negro. */
+@font-face {
+  font-family: 'DSEG7 Classic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/DSEG7Classic-Bold.woff2') format('woff2');
+}
+
 /* Tema oscuro por defecto, en grises (zinc) — no negro puro.
    color-scheme:dark alinea los controles nativos (select, date, scrollbars). */
 :root {
@@ -20,6 +31,7 @@
   --font-anton: var(--font-anton-css);
   --font-iceland: var(--font-iceland-css);
   --font-rubik-mono: var(--font-rubik-mono-css);
+  --font-led: 'DSEG7 Classic';
 }
 
 body {

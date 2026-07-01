@@ -60,17 +60,19 @@ const FUENTE_CLS: Record<string, string> = {
   anton:      'font-anton',
   iceland:    'font-iceland',
   rubik_mono: 'font-rubik-mono',
+  led:        'font-led',
 };
 
 // Ratio empírico ancho-glifo / font-size en 'font-black' + tabular-nums (medido
 // en 4K). Orbitron y Rubik Mono son casi cuadradas; Bebas/Anton condensed; Iceland
-// medio. Sirve para calcular el vw máximo por dígito sin desbordar el panel.
+// medio; LED (DSEG7 Classic Bold) es cuadrada tipo scoreboard.
 const RATIO_GLIFO: Record<string, number> = {
   orbitron:   0.57,
   bebas:      0.36,
   anton:      0.48,
   iceland:    0.50,
   rubik_mono: 0.80,
+  led:        0.62,
 };
 
 function PanelEquipo({

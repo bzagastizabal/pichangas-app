@@ -29,9 +29,161 @@ import {
   togglePlay,
 } from './actions';
 
+// Sub-form del estilo: fuente + colores. Radio controlado con useState para
+// que la selección se sienta al instante (antes era uncontrolled y el ring
+// visual se quedaba pegado al valor persistido en la DB). Los color pickers
+// también son controlados para que "Alto contraste LED" actualice la UI.
+function FormEstilo({ m }: { m: Marcador }) {
+  const [fuenteSel, setFuenteSel] = useState<ClaveFuente>(
+    (m.fuente as ClaveFuente | undefined) ?? 'orbitron',
+  );
+  const [cpl, setCpl] = useState<string>(m.color_puntos_local ?? '#ffffff');
+  const [cpv, setCpv] = useState<string>(m.color_puntos_visitante ?? '#ffffff');
+  const [cfondo, setCfondo] = useState<string>(m.color_fondo ?? '#000000');
+  // Sincroniza si otro admin cambia el estilo desde otra sesión (postgres_changes).
+  useEffect(() => {
+    if (m.fuente) setFuenteSel(m.fuente as ClaveFuente);
+    if (m.color_puntos_local)     setCpl(m.color_puntos_local);
+    if (m.color_puntos_visitante) setCpv(m.color_puntos_visitante);
+    if (m.color_fondo)            setCfondo(m.color_fondo);
+  }, [m.fuente, m.color_puntos_local, m.color_puntos_visitante, m.color_fondo]);
+
+  function presetLED() {
+    // Rojo LED clásico sobre negro — máximo contraste para proyectores de bajos
+    // lúmenes (los tonos rojos son los más eficientes en DLP/LCD baratos).
+    setFuenteSel('led');
+    setCpl('#ff2a2a');
+    setCpv('#ff2a2a');
+    setCfondo('#000000');
+  }
+  function presetAmbar() {
+    setFuenteSel('led');
+    setCpl('#ffb300');
+    setCpv('#ffb300');
+    setCfondo('#000000');
+  }
+  function presetVerde() {
+    setFuenteSel('led');
+    setCpl('#39ff14');
+    setCpv('#39ff14');
+    setCfondo('#000000');
+  }
+
+  return (
+    <form action={actualizarEstilo} className="space-y-3 border-t border-white/5 pt-4">
+      <HiddenId id={m.id} />
+      {/* Presets rápidos para alto contraste en proyector. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-widest text-tenue mr-1">Presets:</span>
+        <button
+          type="button"
+          onClick={presetLED}
+          className="rounded-full bg-red-600/20 ring-1 ring-red-500/40 text-red-200 px-3 py-1 text-xs font-bold hover:bg-red-600/30"
+        >
+          🔴 LED Rojo
+        </button>
+        <button
+          type="button"
+          onClick={presetAmbar}
+          className="rounded-full bg-amber-600/20 ring-1 ring-amber-500/40 text-amber-200 px-3 py-1 text-xs font-bold hover:bg-amber-600/30"
+        >
+          🟡 LED Ámbar
+        </button>
+        <button
+          type="button"
+          onClick={presetVerde}
+          className="rounded-full bg-green-600/20 ring-1 ring-green-500/40 text-green-200 px-3 py-1 text-xs font-bold hover:bg-green-600/30"
+        >
+          🟢 LED Verde
+        </button>
+      </div>
+
+      <div>
+        <label className="block text-xs text-tenue mb-2 uppercase tracking-widest">
+          Fuente de los números
+        </label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {FUENTES.map((f) => {
+            const activa = fuenteSel === f.key;
+            return (
+              <label
+                key={f.key}
+                className={`cursor-pointer rounded-xl px-2 py-3 text-center ring-1 transition ${
+                  activa
+                    ? 'bg-orange-600/25 ring-orange-500/60'
+                    : 'bg-black/30 ring-white/10 hover:bg-black/50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="fuente"
+                  value={f.key}
+                  checked={activa}
+                  onChange={() => setFuenteSel(f.key)}
+                  className="sr-only"
+                />
+                <div className={`${f.cls} text-3xl leading-none tabular-nums text-white`}>
+                  {f.demo}
+                </div>
+                <div className="mt-1 text-[0.65rem] uppercase tracking-widest text-tenue">
+                  {f.label}
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+            Puntos LOCAL
+          </label>
+          <input
+            name="color_puntos_local"
+            type="color"
+            value={cpl}
+            onChange={(e) => setCpl(e.target.value)}
+            className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+            Puntos VISITANTE
+          </label>
+          <input
+            name="color_puntos_visitante"
+            type="color"
+            value={cpv}
+            onChange={(e) => setCpv(e.target.value)}
+            className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+            Fondo
+          </label>
+          <input
+            name="color_fondo"
+            type="color"
+            value={cfondo}
+            onChange={(e) => setCfondo(e.target.value)}
+            className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Boton tono="primario">Aplicar estilo</Boton>
+      </div>
+    </form>
+  );
+}
+
 // Catálogo de fuentes disponibles (sync con SQL 31 y next/font en layout).
+type ClaveFuente = 'orbitron' | 'bebas' | 'anton' | 'iceland' | 'rubik_mono' | 'led';
 const FUENTES: Array<{
-  key: 'orbitron' | 'bebas' | 'anton' | 'iceland' | 'rubik_mono';
+  key: ClaveFuente;
   label: string;
   cls: string;
   demo: string;
@@ -41,6 +193,7 @@ const FUENTES: Array<{
   { key: 'anton',      label: 'Anton',         cls: 'font-anton',      demo: '88' },
   { key: 'iceland',    label: 'Iceland',       cls: 'font-iceland',    demo: '88' },
   { key: 'rubik_mono', label: 'Rubik Mono',    cls: 'font-rubik-mono', demo: '88' },
+  { key: 'led',        label: 'LED 7-seg',     cls: 'font-led',        demo: '88' },
 ];
 
 // ---- Helpers de botones --------------------------------------------------
@@ -485,83 +638,7 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
         </form>
 
         {/* Estilo del marcador (SQL 31) — fuente, color de puntos por equipo y fondo. */}
-        <form action={actualizarEstilo} className="space-y-3 border-t border-white/5 pt-4">
-          <HiddenId id={m.id} />
-          <div>
-            <label className="block text-xs text-tenue mb-2 uppercase tracking-widest">
-              Fuente de los números
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              {FUENTES.map((f) => {
-                const activa = (m.fuente ?? 'orbitron') === f.key;
-                return (
-                  <label
-                    key={f.key}
-                    className={`cursor-pointer rounded-xl px-2 py-3 text-center ring-1 transition ${
-                      activa
-                        ? 'bg-orange-600/20 ring-orange-500/50'
-                        : 'bg-black/30 ring-white/10 hover:bg-black/50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="fuente"
-                      value={f.key}
-                      defaultChecked={activa}
-                      className="sr-only"
-                    />
-                    <div className={`${f.cls} text-3xl leading-none tabular-nums text-white`}>
-                      {f.demo}
-                    </div>
-                    <div className="mt-1 text-[0.65rem] uppercase tracking-widest text-tenue">
-                      {f.label}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
-                Puntos LOCAL
-              </label>
-              <input
-                name="color_puntos_local"
-                type="color"
-                defaultValue={m.color_puntos_local ?? '#ffffff'}
-                className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
-                Puntos VISITANTE
-              </label>
-              <input
-                name="color_puntos_visitante"
-                type="color"
-                defaultValue={m.color_puntos_visitante ?? '#ffffff'}
-                className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
-                Fondo
-              </label>
-              <input
-                name="color_fondo"
-                type="color"
-                defaultValue={m.color_fondo ?? '#000000'}
-                className="h-10 w-full cursor-pointer rounded-lg border border-borde bg-campo p-1"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Boton tono="primario">Aplicar estilo</Boton>
-          </div>
-        </form>
+        <FormEstilo m={m} />
 
         <form action={reiniciarPartido}>
           <HiddenId id={m.id} />

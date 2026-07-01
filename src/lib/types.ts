@@ -328,7 +328,7 @@ export type Marcador = {
   color_local: string;
   color_visitante: string;
   // Estilo del marcador (SQL 31): fuente + color del puntaje por equipo + fondo.
-  fuente: 'orbitron' | 'bebas' | 'anton' | 'iceland' | 'rubik_mono';
+  fuente: 'orbitron' | 'bebas' | 'anton' | 'iceland' | 'rubik_mono' | 'led';
   color_puntos_local: string;
   color_puntos_visitante: string;
   color_fondo: string;

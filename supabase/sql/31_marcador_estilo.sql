@@ -11,7 +11,7 @@ alter table public.marcadores
 alter table public.marcadores drop constraint if exists marcadores_fuente_chk;
 alter table public.marcadores
   add constraint marcadores_fuente_chk
-    check (fuente in ('orbitron','bebas','anton','iceland','rubik_mono'));
+    check (fuente in ('orbitron','bebas','anton','iceland','rubik_mono','led'));
 
 -- Colores HEX #rgb / #rrggbb.
 alter table public.marcadores drop constraint if exists marcadores_color_puntos_local_chk;

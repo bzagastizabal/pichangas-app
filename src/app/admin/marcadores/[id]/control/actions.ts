@@ -190,7 +190,7 @@ export async function renombrarEquipos(formData: FormData): Promise<void> {
 }
 
 // Actualiza estilo visual del marcador (SQL 31). Fallback si columnas ausentes.
-const FUENTES_VALIDAS = new Set(['orbitron', 'bebas', 'anton', 'iceland', 'rubik_mono']);
+const FUENTES_VALIDAS = new Set(['orbitron', 'bebas', 'anton', 'iceland', 'rubik_mono', 'led']);
 const HEX = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
 export async function actualizarEstilo(formData: FormData): Promise<void> {
   await requireAdmin();
