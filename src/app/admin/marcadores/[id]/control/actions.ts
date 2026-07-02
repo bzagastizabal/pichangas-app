@@ -164,8 +164,8 @@ export async function cambiarPeriodo(formData: FormData): Promise<void> {
     .eq('id', id);
 }
 
-// Acepta también color del nombre por equipo (SQL 30). Si las columnas aún no
-// existen, reintenta sin ellas para no bloquear al admin.
+// Acepta también color del nombre por equipo (SQL 30) y título opcional (SQL 32).
+// Si las columnas aún no existen, reintenta con menos campos.
 export async function renombrarEquipos(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = formData.get('id') as string;
@@ -177,12 +177,25 @@ export async function renombrarEquipos(formData: FormData): Promise<void> {
   const cv_raw = ((formData.get('color_visitante') as string) || '').trim();
   const color_local = hex.test(cl_raw) ? cl_raw : '#ffffff';
   const color_visitante = hex.test(cv_raw) ? cv_raw : '#ffffff';
+  const tituloRaw = ((formData.get('titulo') as string) || '').trim();
+  const titulo = tituloRaw.length ? tituloRaw.slice(0, 200) : null;
   const supabase = await createClient();
-  const upd = { nombre_local, nombre_visitante, color_local, color_visitante };
+  const upd: Record<string, unknown> = {
+    nombre_local, nombre_visitante,
+    color_local, color_visitante,
+    titulo,
+  };
   const r = await supabase.from('marcadores').update(upd).eq('id', id);
-  if (r.error && /color_(local|visitante)/.test(r.error.message)) {
-    await supabase
-      .from('marcadores')
+  if (r.error && /titulo/.test(r.error.message)) {
+    delete upd.titulo;
+    const r2 = await supabase.from('marcadores').update(upd).eq('id', id);
+    if (r2.error && /color_(local|visitante)/.test(r2.error.message)) {
+      await supabase.from('marcadores')
+        .update({ nombre_local, nombre_visitante })
+        .eq('id', id);
+    }
+  } else if (r.error && /color_(local|visitante)/.test(r.error.message)) {
+    await supabase.from('marcadores')
       .update({ nombre_local, nombre_visitante })
       .eq('id', id);
   }
@@ -200,14 +213,21 @@ export async function actualizarEstilo(formData: FormData): Promise<void> {
   const cplRaw = ((formData.get('color_puntos_local') as string) || '').trim();
   const cpvRaw = ((formData.get('color_puntos_visitante') as string) || '').trim();
   const cfRaw  = ((formData.get('color_fondo') as string) || '').trim();
-  const upd: Record<string, string> = {
+  const neon = formData.get('neon') === 'on';
+  const upd: Record<string, string | boolean> = {
     fuente: FUENTES_VALIDAS.has(fuenteRaw) ? fuenteRaw : 'orbitron',
     color_puntos_local:     HEX.test(cplRaw) ? cplRaw : '#ffffff',
     color_puntos_visitante: HEX.test(cpvRaw) ? cpvRaw : '#ffffff',
     color_fondo:            HEX.test(cfRaw)  ? cfRaw  : '#000000',
+    neon,
   };
   const supabase = await createClient();
   const r = await supabase.from('marcadores').update(upd).eq('id', id);
+  if (r.error && /neon/.test(r.error.message)) {
+    delete upd.neon;
+    await supabase.from('marcadores').update(upd).eq('id', id);
+    return;
+  }
   if (r.error && /fuente|color_puntos|color_fondo/.test(r.error.message)) {
     // Columnas aún no creadas: no bloquear al admin.
     return;

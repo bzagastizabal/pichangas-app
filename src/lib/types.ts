@@ -332,6 +332,11 @@ export type Marcador = {
   color_puntos_local: string;
   color_puntos_visitante: string;
   color_fondo: string;
+  // Titulo opcional (SQL 32) — se muestra arriba en el visor (evento/torneo).
+  titulo: string | null;
+  // Halo brillante alrededor del puntaje (SQL 33). Recomendado para
+  // proyectores de bajos lumenes: aumenta el area luminosa sin perder color.
+  neon: boolean;
   expira_en: string;
   creado_por: string;
   created_at: string;

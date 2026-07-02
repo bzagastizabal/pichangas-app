@@ -40,63 +40,93 @@ function FormEstilo({ m }: { m: Marcador }) {
   const [cpl, setCpl] = useState<string>(m.color_puntos_local ?? '#ffffff');
   const [cpv, setCpv] = useState<string>(m.color_puntos_visitante ?? '#ffffff');
   const [cfondo, setCfondo] = useState<string>(m.color_fondo ?? '#000000');
+  const [neon, setNeon] = useState<boolean>(m.neon ?? false);
   // Sincroniza si otro admin cambia el estilo desde otra sesión (postgres_changes).
   useEffect(() => {
     if (m.fuente) setFuenteSel(m.fuente as ClaveFuente);
     if (m.color_puntos_local)     setCpl(m.color_puntos_local);
     if (m.color_puntos_visitante) setCpv(m.color_puntos_visitante);
     if (m.color_fondo)            setCfondo(m.color_fondo);
-  }, [m.fuente, m.color_puntos_local, m.color_puntos_visitante, m.color_fondo]);
+    if (typeof m.neon === 'boolean') setNeon(m.neon);
+  }, [m.fuente, m.color_puntos_local, m.color_puntos_visitante, m.color_fondo, m.neon]);
 
-  function presetLED() {
-    // Rojo LED clásico sobre negro — máximo contraste para proyectores de bajos
-    // lúmenes (los tonos rojos son los más eficientes en DLP/LCD baratos).
-    setFuenteSel('led');
-    setCpl('#ff2a2a');
-    setCpv('#ff2a2a');
-    setCfondo('#000000');
-  }
-  function presetAmbar() {
-    setFuenteSel('led');
-    setCpl('#ffb300');
-    setCpv('#ffb300');
-    setCfondo('#000000');
+  // Presets pensados para PROYECTOR de bajos lúmenes.
+  // Regla de brillo en DLP/LCD: blanco > amarillo > verde > cyan > rojo > azul.
+  // Con neón encendido el halo aumenta el área luminosa sin perder contraste.
+  function presetBlanco() {
+    // Máximo brillo posible — recomendado.
+    setFuenteSel('led'); setCpl('#ffffff'); setCpv('#ffffff'); setCfondo('#000000'); setNeon(true);
   }
   function presetVerde() {
-    setFuenteSel('led');
-    setCpl('#39ff14');
-    setCpv('#39ff14');
-    setCfondo('#000000');
+    // Segundo más brillante, look clásico LED de estadio.
+    setFuenteSel('led'); setCpl('#39ff14'); setCpv('#39ff14'); setCfondo('#000000'); setNeon(true);
+  }
+  function presetAmbar() {
+    setFuenteSel('led'); setCpl('#ffb300'); setCpv('#ffb300'); setCfondo('#000000'); setNeon(true);
+  }
+  function presetRojo() {
+    // Rojo LED clásico — bonito pero apagado en proyectores baratos.
+    setFuenteSel('led'); setCpl('#ff2a2a'); setCpv('#ff2a2a'); setCfondo('#000000'); setNeon(true);
   }
 
   return (
     <form action={actualizarEstilo} className="space-y-3 border-t border-white/5 pt-4">
       <HiddenId id={m.id} />
       {/* Presets rápidos para alto contraste en proyector. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs uppercase tracking-widest text-tenue mr-1">Presets:</span>
-        <button
-          type="button"
-          onClick={presetLED}
-          className="rounded-full bg-red-600/20 ring-1 ring-red-500/40 text-red-200 px-3 py-1 text-xs font-bold hover:bg-red-600/30"
-        >
-          🔴 LED Rojo
-        </button>
-        <button
-          type="button"
-          onClick={presetAmbar}
-          className="rounded-full bg-amber-600/20 ring-1 ring-amber-500/40 text-amber-200 px-3 py-1 text-xs font-bold hover:bg-amber-600/30"
-        >
-          🟡 LED Ámbar
-        </button>
-        <button
-          type="button"
-          onClick={presetVerde}
-          className="rounded-full bg-green-600/20 ring-1 ring-green-500/40 text-green-200 px-3 py-1 text-xs font-bold hover:bg-green-600/30"
-        >
-          🟢 LED Verde
-        </button>
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-widest text-tenue mr-1">Presets:</span>
+          <button
+            type="button"
+            onClick={presetBlanco}
+            className="rounded-full bg-white/10 ring-1 ring-white/40 text-white px-3 py-1 text-xs font-bold hover:bg-white/20"
+            title="Máximo brillo — recomendado para proyector de bajos lúmenes"
+          >
+            ⚪ LED Blanco ⭐
+          </button>
+          <button
+            type="button"
+            onClick={presetVerde}
+            className="rounded-full bg-green-600/20 ring-1 ring-green-500/40 text-green-200 px-3 py-1 text-xs font-bold hover:bg-green-600/30"
+          >
+            🟢 LED Verde
+          </button>
+          <button
+            type="button"
+            onClick={presetAmbar}
+            className="rounded-full bg-amber-600/20 ring-1 ring-amber-500/40 text-amber-200 px-3 py-1 text-xs font-bold hover:bg-amber-600/30"
+          >
+            🟡 LED Ámbar
+          </button>
+          <button
+            type="button"
+            onClick={presetRojo}
+            className="rounded-full bg-red-600/20 ring-1 ring-red-500/40 text-red-200 px-3 py-1 text-xs font-bold hover:bg-red-600/30"
+          >
+            🔴 LED Rojo
+          </button>
+        </div>
+        <p className="text-[0.65rem] text-tenue/80 pl-1">
+          Para proyector de bajos lúmenes usá <b className="text-white">Blanco</b> o <b className="text-green-300">Verde</b> — son 2-3× más brillantes que rojo/azul en proyectores DLP/LCD.
+        </p>
       </div>
+
+      {/* Neón: halo brillante alrededor del puntaje. */}
+      <label className="flex items-center gap-3 rounded-xl bg-black/20 ring-1 ring-white/5 p-3 cursor-pointer">
+        <input
+          type="checkbox"
+          name="neon"
+          checked={neon}
+          onChange={(e) => setNeon(e.target.checked)}
+          className="h-5 w-5 accent-orange-500"
+        />
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-white">Efecto neón (halo brillante)</div>
+          <div className="text-[0.7rem] text-tenue">
+            Multiplica el área luminosa del puntaje sin cambiar el color. Recomendado en proyectores oscuros.
+          </div>
+        </div>
+      </label>
 
       <div>
         <label className="block text-xs text-tenue mb-2 uppercase tracking-widest">
@@ -600,6 +630,18 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
       <div className="rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ring-white/10 p-4 sm:p-5 space-y-4">
         <form action={renombrarEquipos} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] items-end">
           <HiddenId id={m.id} />
+          <div className="sm:col-span-3">
+            <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+              Título del marcador <span className="normal-case text-tenue/70">(opcional — evento/torneo)</span>
+            </label>
+            <input
+              name="titulo"
+              defaultValue={m.titulo ?? ''}
+              placeholder="Ej. Copa CMT 2026 — Final"
+              maxLength={200}
+              className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-full"
+            />
+          </div>
           <div>
             <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">Nombre LOCAL</label>
             <div className="flex items-stretch gap-2">

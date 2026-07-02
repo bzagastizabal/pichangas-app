@@ -85,6 +85,7 @@ function PanelEquipo({
   colorNombre,
   colorPuntos,
   fuente = 'orbitron',
+  neon = false,
 }: {
   nombre: string;
   puntos: number;
@@ -97,6 +98,8 @@ function PanelEquipo({
   colorNombre?: string | null;
   colorPuntos?: string | null;
   fuente?: string;
+  // Halo brillante (para proyectores oscuros).
+  neon?: boolean;
 }) {
   const bonus = faltas >= 4;
   const flash = useFlashAlCambiar(puntos);
@@ -126,21 +129,26 @@ function PanelEquipo({
         padding: mega ? 'clamp(0.15rem, 0.4vmin, 0.6rem)' : 'clamp(0.75rem, 2vmin, 3rem)',
       }}
     >
-      {/* Indicador de acento + nombre — más prominente para identificar al equipo */}
-      <div className="flex items-center gap-[1.2vmin] max-w-full">
-        <span
-          className={`rounded-full ${acento.punto}`}
-          style={{ width: 'clamp(0.6rem, 1.4vmin, 1.5rem)', height: 'clamp(0.6rem, 1.4vmin, 1.5rem)' }}
-          aria-hidden
-        />
+      {/* Nombre. En mega ocultamos el punto de color para centrar el texto
+          exactamente en el panel (el punto+gap lo desplazaba a la derecha).
+          El color del texto ya identifica al equipo. */}
+      <div className={`flex items-center max-w-full ${mega ? '' : 'gap-[1.2vmin]'}`}>
+        {!mega && (
+          <span
+            className={`rounded-full ${acento.punto}`}
+            style={{ width: 'clamp(0.6rem, 1.4vmin, 1.5rem)', height: 'clamp(0.6rem, 1.4vmin, 1.5rem)' }}
+            aria-hidden
+          />
+        )}
         <p
-          className="uppercase tracking-[0.18em] font-bold truncate"
+          className="uppercase tracking-[0.18em] font-bold truncate text-center"
           style={{
             color: colorTxt,
-            // min(vh,vw) protege contra desborde horizontal del nombre en mega
+            // Mega: llenamos el espacio superior desperdiciado con nombres
+            // grandes. min(vh,vw) protege contra desborde horizontal en
             // landscape donde el panel mide ~50vw.
             fontSize: mega
-              ? 'clamp(1.8rem, min(13vh, 5vw), 16rem)'
+              ? 'clamp(2.2rem, min(17vh, 6.5vw), 22rem)'
               : 'clamp(1.1rem, 5vmin, 7rem)',
           }}
         >
@@ -166,7 +174,11 @@ function PanelEquipo({
             ? 'clamp(1rem, 3vmin, 4rem)'
             : 'clamp(0.5rem, 1.5vmin, 2rem)',
           color: colorPts,
-          textShadow: acento.glow,
+          // Con neón: doble halo en el mismo color del puntaje (potente).
+          // Sin neón: halo suave del acento por lado (orange/sky).
+          textShadow: neon
+            ? `0 0 12px ${colorPts}, 0 0 40px ${colorPts}, 0 0 90px ${colorPts}, 0 0 180px ${colorPts}`
+            : acento.glow,
           letterSpacing: '-0.02em',
         }}
       >
@@ -450,6 +462,26 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
 
       {/* Contenido encima */}
       <div className="relative z-10 flex min-h-[100dvh] flex-col">
+        {/* Título opcional (SQL 32) — evento/torneo. Se muestra siempre arriba
+            cuando está seteado. En mega ocupa el header liberado. */}
+        {m.titulo && (
+          <div
+            className="w-full text-center"
+            style={{
+              paddingTop:    modoMega ? 'clamp(0.5rem, 1.5vmin, 2rem)' : 'clamp(0.4rem, 1vmin, 1.5rem)',
+              paddingBottom: modoMega ? 'clamp(0.25rem, 0.8vmin, 1rem)' : 'clamp(0.2rem, 0.6vmin, 0.8rem)',
+              paddingLeft:   'clamp(0.75rem, 2vmin, 3rem)',
+              paddingRight:  'clamp(0.75rem, 2vmin, 3rem)',
+            }}
+          >
+            <p
+              className="uppercase tracking-[0.35em] font-semibold text-zinc-300 truncate"
+              style={{ fontSize: modoMega ? 'clamp(1rem, 3vmin, 3.5rem)' : 'clamp(0.7rem, 1.6vmin, 2rem)' }}
+            >
+              {m.titulo}
+            </p>
+          </div>
+        )}
         {/* HEADER — se oculta en mega para liberar todo el alto al puntaje. */}
         {!modoMega && (
         <header
@@ -637,6 +669,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             colorNombre={m.color_local}
             colorPuntos={m.color_puntos_local}
             fuente={fuenteM}
+            neon={m.neon}
           />
           {conShot && (
             <div className="order-first sm:order-none sm:flex sm:items-center">
@@ -653,6 +686,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             colorNombre={m.color_visitante}
             colorPuntos={m.color_puntos_visitante}
             fuente={fuenteM}
+            neon={m.neon}
           />
         </div>
 
