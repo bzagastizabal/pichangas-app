@@ -86,6 +86,7 @@ function PanelEquipo({
   colorPuntos,
   fuente = 'orbitron',
   neon = false,
+  digitosGlobal,
 }: {
   nombre: string;
   puntos: number;
@@ -100,6 +101,9 @@ function PanelEquipo({
   fuente?: string;
   // Halo brillante (para proyectores oscuros).
   neon?: boolean;
+  // Máximo de dígitos entre los dos equipos — ambos usan el mismo font-size
+  // para que 9 vs 12 no queden desproporcionados.
+  digitosGlobal?: number;
 }) {
   const bonus = faltas >= 4;
   const flash = useFlashAlCambiar(puntos);
@@ -109,7 +113,12 @@ function PanelEquipo({
   // o tres dígitos no se desborden del panel (cada panel = 50vw en landscape).
   // Para nombre y puntaje usamos min(vh, vw) — vh limita la altura disponible
   // y vw limita el ancho del panel para no chocar con el panel de al lado.
-  const digitos = Math.max(1, String(Math.max(0, puntos)).length);
+  // Usamos el max de dígitos entre ambos equipos si el parent nos lo pasa
+  // (para uniformar el tamaño 9 vs 12); si no, caemos al conteo local.
+  const digitos = Math.max(
+    1,
+    digitosGlobal ?? String(Math.max(0, puntos)).length,
+  );
   const ratio = RATIO_GLIFO[fuente] ?? RATIO_GLIFO.orbitron;
   // Panel útil ≈ 49vw. Apuntamos a que el número ocupe ~80% del panel
   // (deja ~10% de margen a cada lado para que 87 - 74 no se toquen en el
@@ -383,6 +392,13 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   // Modo "máximo simple": sin reloj, sin shot y sin Q → nombres y puntajes
   // crecen para ocupar el espacio liberado.
   const modoMega = !conReloj && !conShot && !conPeriodo;
+  // Máximo de dígitos entre ambos equipos — para que 9 vs 12 no queden con
+  // tamaños distintos, ambos paneles usan el mismo conteo.
+  const digitosMax = Math.max(
+    String(Math.max(0, m.puntos_local)).length,
+    String(Math.max(0, m.puntos_visitante)).length,
+    1,
+  );
 
   // Estilo configurable (SQL 31). Fallbacks para marcadores previos.
   const fuenteM = (m.fuente as string) ?? 'orbitron';
@@ -670,6 +686,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             colorPuntos={m.color_puntos_local}
             fuente={fuenteM}
             neon={m.neon}
+            digitosGlobal={digitosMax}
           />
           {conShot && (
             <div className="order-first sm:order-none sm:flex sm:items-center">
@@ -687,6 +704,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             colorPuntos={m.color_puntos_visitante}
             fuente={fuenteM}
             neon={m.neon}
+            digitosGlobal={digitosMax}
           />
         </div>
 
