@@ -337,6 +337,8 @@ export type Marcador = {
   // Halo brillante alrededor del puntaje (SQL 33). Recomendado para
   // proyectores de bajos lumenes: aumenta el area luminosa sin perder color.
   neon: boolean;
+  // Tipo de bocina (SQL 34). ncaa (default) / nba / high_school / air_horn.
+  bocina_tipo: 'ncaa' | 'nba' | 'high_school' | 'air_horn';
   expira_en: string;
   creado_por: string;
   created_at: string;

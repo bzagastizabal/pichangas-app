@@ -55,101 +55,166 @@ export function tocarBeep(volumen = 0.25): void {
   osc.stop(t + 0.15);
 }
 
-// Chicharra estilo NCAA Arena (bocina de partido universitario).
-// Receta afinada por escucha:
-//  - Fundamental grave 165 Hz (E3) para el "honk" profundo característico
-//  - Harmónicos: octava (330) + 12va (495) + doble octava (660) — como una
-//    bocina de aire de bocina metálica con resonancia
-//  - Sub-oscilador sinusoidal a 82 Hz para cuerpo pero SIN opacar el mid
-//  - Filtro pasa-bajos con Q alta y CUT constante (sin sweep) para el sonido
-//    sostenido "no sintetizador" — el sweep era lo que sonaba a videojuego
-//  - LFO de vibrato ~4 Hz sobre las capas (simula la vibración de la lengüeta)
-//  - Ráfaga de aire inicial (ruido bandpass 800 Hz) más gorda que antes
-//  - Attack de 30 ms; sostiene y hace tail exponencial de 400 ms
-export function tocarBocina(corta = false, volumen = 0.5): void {
+// Tipos de bocina disponibles — sync con SQL 34.
+export type BocinaTipo = 'ncaa' | 'nba' | 'high_school' | 'air_horn';
+
+// Cada variante define los parámetros que la diferencian; el motor común
+// abajo arma la señal (subosc + LFO + capas + LP + ráfaga inicial).
+type BocinaReceta = {
+  duracionCorta: number;   // segundos (short — fin de shot)
+  duracionLarga: number;   // segundos (long — fin de periodo o manual)
+  release: number;         // exponential decay tail
+  subHz: number;           // frecuencia del sub-oscilador (sine)
+  subNivel: number;        // 0..1; 0 = sin sub (air horn)
+  lpFreq: number;          // cutoff del pasa-bajos fijo
+  lpQ: number;
+  lfoHz: number;           // frecuencia de vibrato
+  lfoCents: number;        // amplitud del vibrato en cents; 0 = sin vibrato
+  capas: Array<{ hz: number; nivel: number; tipo: OscillatorType }>;
+  aireDur: number;         // duración de la ráfaga inicial de ruido
+  aireHz: number;          // centro del bandpass del ruido
+  aireQ: number;
+  aireNivel: number;       // multiplicador vs volumen
+};
+
+const RECETAS: Record<BocinaTipo, BocinaReceta> = {
+  // NCAA Arena — universitario clásico, honk grave sostenido con vibrato leve.
+  ncaa: {
+    duracionCorta: 0.55, duracionLarga: 2.5, release: 0.4,
+    subHz: 82, subNivel: 0.5,
+    lpFreq: 1600, lpQ: 2.2,
+    lfoHz: 4, lfoCents: 3,
+    capas: [
+      { hz: 165, nivel: 0.95, tipo: 'sawtooth' },
+      { hz: 165, nivel: 0.55, tipo: 'square'   },
+      { hz: 330, nivel: 0.65, tipo: 'sawtooth' },
+      { hz: 495, nivel: 0.35, tipo: 'sawtooth' },
+      { hz: 660, nivel: 0.20, tipo: 'triangle' },
+    ],
+    aireDur: 0.1, aireHz: 800, aireQ: 0.5, aireNivel: 0.75,
+  },
+  // NBA Arena — más grave y más largo, con wobble marcado tipo estadio pro.
+  nba: {
+    duracionCorta: 0.6, duracionLarga: 3.0, release: 0.5,
+    subHz: 65, subNivel: 0.7,
+    lpFreq: 2000, lpQ: 1.5,
+    lfoHz: 2.5, lfoCents: 20,  // wobble mucho más notorio
+    capas: [
+      { hz: 130, nivel: 0.95, tipo: 'sawtooth' },
+      { hz: 130, nivel: 0.6,  tipo: 'square'   },
+      { hz: 260, nivel: 0.70, tipo: 'sawtooth' },
+      { hz: 390, nivel: 0.30, tipo: 'sawtooth' },
+      { hz: 520, nivel: 0.15, tipo: 'triangle' },
+    ],
+    aireDur: 0.06, aireHz: 500, aireQ: 0.4, aireNivel: 0.55,
+  },
+  // High school gym — aguda, seca, sin fanfarria.
+  high_school: {
+    duracionCorta: 0.4, duracionLarga: 1.5, release: 0.25,
+    subHz: 120, subNivel: 0.3,
+    lpFreq: 2400, lpQ: 1.0,
+    lfoHz: 0, lfoCents: 0,   // sin vibrato
+    capas: [
+      { hz: 240, nivel: 0.9,  tipo: 'sawtooth' },
+      { hz: 480, nivel: 0.55, tipo: 'sawtooth' },
+      { hz: 720, nivel: 0.25, tipo: 'triangle' },
+    ],
+    aireDur: 0.03, aireHz: 1200, aireQ: 0.8, aireNivel: 0.4,
+  },
+  // Air horn — festivalero/vuvuzela, alto y brillante, sin sub.
+  air_horn: {
+    duracionCorta: 0.5, duracionLarga: 2.0, release: 0.3,
+    subHz: 0, subNivel: 0,    // sin sub (característico del air horn)
+    lpFreq: 3200, lpQ: 0.8,
+    lfoHz: 0, lfoCents: 0,
+    capas: [
+      { hz: 480,  nivel: 0.85, tipo: 'square'   },  // fundamental cuadrada agresiva
+      { hz: 720,  nivel: 0.60, tipo: 'sawtooth' },
+      { hz: 960,  nivel: 0.45, tipo: 'sawtooth' },
+      { hz: 1440, nivel: 0.25, tipo: 'triangle' },
+    ],
+    aireDur: 0.04, aireHz: 2000, aireQ: 0.6, aireNivel: 0.5,
+  },
+};
+
+// Chicharra/horn — reproduce la variante indicada por `tipo`. El engine
+// común usa: sub-osc sine + LFO de vibrato + N capas armónicas → LP fijo →
+// master envelope; más una ráfaga de ruido inicial paralela para el aire.
+export function tocarBocina(corta = false, tipo: BocinaTipo = 'ncaa', volumen = 0.5): void {
   const c = ctx;
   if (!c || !unlocked) return;
+  const r = RECETAS[tipo] ?? RECETAS.ncaa;
   const t = c.currentTime;
-  const duracion = corta ? 0.55 : 2.5;
-  const releaseDur = 0.4;
+  const duracion = corta ? r.duracionCorta : r.duracionLarga;
+  const fin = t + duracion + r.release + 0.05;
 
-  // Master con envelope sostenido.
   const master = c.createGain();
   master.gain.setValueAtTime(0, t);
   master.gain.linearRampToValueAtTime(volumen, t + 0.03);
   master.gain.setValueAtTime(volumen, t + duracion);
-  master.gain.exponentialRampToValueAtTime(0.0001, t + duracion + releaseDur);
+  master.gain.exponentialRampToValueAtTime(0.0001, t + duracion + r.release);
   master.connect(c.destination);
 
-  // Filtro pasa-bajos FIJO (sin sweep) para que suene sostenido, no
-  // "wah". Cut en 1600 Hz, Q moderada para dar carácter sin nasalidad.
   const lp = c.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 1600;
-  lp.Q.value = 2.2;
+  lp.frequency.value = r.lpFreq;
+  lp.Q.value = r.lpQ;
   lp.connect(master);
 
-  // Sub grave 82 Hz (E2), gordo pero sin dominar.
-  const subOsc = c.createOscillator();
-  const subGain = c.createGain();
-  subOsc.type = 'sine';
-  subOsc.frequency.value = 82;
-  subGain.gain.value = 0.5;
-  subOsc.connect(subGain).connect(master);
-  subOsc.start(t);
-  subOsc.stop(t + duracion + releaseDur + 0.05);
+  // Sub grave (si aplica — air horn lo omite).
+  if (r.subNivel > 0 && r.subHz > 0) {
+    const subOsc = c.createOscillator();
+    const subGain = c.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.value = r.subHz;
+    subGain.gain.value = r.subNivel;
+    subOsc.connect(subGain).connect(master);
+    subOsc.start(t);
+    subOsc.stop(fin);
+  }
 
-  // LFO ~4 Hz de vibrato sutil (±3 cents) — la vibración de la lengüeta
-  // metálica de una bocina real. Sin esto suena demasiado "estático".
-  const lfo = c.createOscillator();
-  const lfoGain = c.createGain();
-  lfo.type = 'sine';
-  lfo.frequency.value = 4;
-  lfoGain.gain.value = 3; // ±3 cents
-  lfo.connect(lfoGain);
-  lfo.start(t);
-  lfo.stop(t + duracion + releaseDur + 0.05);
+  // LFO de vibrato (0 cents = sin vibrato).
+  let lfoGain: GainNode | null = null;
+  if (r.lfoCents > 0 && r.lfoHz > 0) {
+    const lfo = c.createOscillator();
+    lfoGain = c.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = r.lfoHz;
+    lfoGain.gain.value = r.lfoCents;
+    lfo.connect(lfoGain);
+    lfo.start(t);
+    lfo.stop(fin);
+  }
 
-  // Capas: fundamental 165 Hz (E3), octava 330, 12va 495, doble octava 660.
-  // El "aire" del horn = sawtooth suave; la resonancia = square más apagada.
-  const capas: Array<{ hz: number; nivel: number; tipo: OscillatorType }> = [
-    { hz: 165,  nivel: 0.95, tipo: 'sawtooth' },
-    { hz: 165,  nivel: 0.55, tipo: 'square'   },
-    { hz: 330,  nivel: 0.65, tipo: 'sawtooth' },
-    { hz: 495,  nivel: 0.35, tipo: 'sawtooth' },
-    { hz: 660,  nivel: 0.20, tipo: 'triangle' },
-  ];
-  for (const capa of capas) {
+  // Capas armónicas.
+  for (const capa of r.capas) {
     const o = c.createOscillator();
     const g = c.createGain();
     o.type = capa.tipo;
     o.frequency.value = capa.hz;
-    lfoGain.connect(o.detune); // vibrato del LFO
+    if (lfoGain) lfoGain.connect(o.detune);
     g.gain.value = capa.nivel;
     o.connect(g).connect(lp);
     o.start(t);
-    o.stop(t + duracion + releaseDur + 0.05);
+    o.stop(fin);
   }
 
-  // Ráfaga inicial de aire (100 ms, bandpass 800 Hz) — más gorda que antes,
-  // simula el arranque físico de la boca del horn.
-  const noiseDur = 0.1;
-  const buf = c.createBuffer(1, Math.ceil(c.sampleRate * noiseDur), c.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.2);
+  // Ráfaga inicial de aire (la parte "física" del arranque del horn).
+  if (r.aireDur > 0) {
+    const buf = c.createBuffer(1, Math.ceil(c.sampleRate * r.aireDur), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.2);
+    }
+    const noiseSrc = c.createBufferSource();
+    noiseSrc.buffer = buf;
+    const noiseFilter = c.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = r.aireHz;
+    noiseFilter.Q.value = r.aireQ;
+    const noiseGain = c.createGain();
+    noiseGain.gain.value = volumen * r.aireNivel;
+    noiseSrc.connect(noiseFilter).connect(noiseGain).connect(c.destination);
+    noiseSrc.start(t);
   }
-  const noiseSrc = c.createBufferSource();
-  noiseSrc.buffer = buf;
-  const noiseFilter = c.createBiquadFilter();
-  noiseFilter.type = 'bandpass';
-  noiseFilter.frequency.value = 800;
-  noiseFilter.Q.value = 0.5;
-  const noiseGain = c.createGain();
-  noiseGain.gain.value = volumen * 0.75;
-  noiseSrc
-    .connect(noiseFilter)
-    .connect(noiseGain)
-    .connect(c.destination);
-  noiseSrc.start(t);
 }

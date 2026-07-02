@@ -340,7 +340,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         const shotSec = Math.ceil(nuevoShot / 1000);
         if (shotSec < lastShotSecRef.current) {
           if (shotSec >= 1 && shotSec <= 5) tocarBeep();
-          else if (shotSec === 0) tocarBocina(true);
+          else if (shotSec === 0) tocarBocina(true, m.bocina_tipo);
           lastShotSecRef.current = shotSec;
         } else if (shotSec > lastShotSecRef.current) {
           // Reset (admin pulsó "24" o "14") — solo reseteamos el ref, no suena.
@@ -358,7 +358,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         lastRelojPosRef.current &&
         !positivo
       ) {
-        tocarBocina(false);
+        tocarBocina(false, m.bocina_tipo);
       }
       lastRelojPosRef.current = positivo;
 
@@ -374,7 +374,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   useEffect(() => {
     const actual = m.bocina_pulsos ?? 0;
     if (actual > lastBocinaRef.current && sonidoOn && audioDesbloqueado()) {
-      tocarBocina(false);
+      tocarBocina(false, m.bocina_tipo);
     }
     lastBocinaRef.current = actual;
   }, [m.bocina_pulsos, sonidoOn]);

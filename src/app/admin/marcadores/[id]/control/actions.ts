@@ -214,15 +214,27 @@ export async function actualizarEstilo(formData: FormData): Promise<void> {
   const cpvRaw = ((formData.get('color_puntos_visitante') as string) || '').trim();
   const cfRaw  = ((formData.get('color_fondo') as string) || '').trim();
   const neon = formData.get('neon') === 'on';
+  const bocinaRaw = ((formData.get('bocina_tipo') as string) || '').trim();
+  const BOCINAS_VALIDAS = new Set(['ncaa', 'nba', 'high_school', 'air_horn']);
   const upd: Record<string, string | boolean> = {
     fuente: FUENTES_VALIDAS.has(fuenteRaw) ? fuenteRaw : 'orbitron',
     color_puntos_local:     HEX.test(cplRaw) ? cplRaw : '#ffffff',
     color_puntos_visitante: HEX.test(cpvRaw) ? cpvRaw : '#ffffff',
     color_fondo:            HEX.test(cfRaw)  ? cfRaw  : '#000000',
     neon,
+    bocina_tipo: BOCINAS_VALIDAS.has(bocinaRaw) ? bocinaRaw : 'ncaa',
   };
   const supabase = await createClient();
   const r = await supabase.from('marcadores').update(upd).eq('id', id);
+  if (r.error && /bocina_tipo/.test(r.error.message)) {
+    delete upd.bocina_tipo;
+    const r2 = await supabase.from('marcadores').update(upd).eq('id', id);
+    if (r2.error && /neon/.test(r2.error.message)) {
+      delete upd.neon;
+      await supabase.from('marcadores').update(upd).eq('id', id);
+    }
+    return;
+  }
   if (r.error && /neon/.test(r.error.message)) {
     delete upd.neon;
     await supabase.from('marcadores').update(upd).eq('id', id);

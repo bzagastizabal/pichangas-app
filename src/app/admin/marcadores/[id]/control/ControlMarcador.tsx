@@ -16,6 +16,24 @@ import {
   type EventoFast,
 } from '@/lib/marcador-broadcast';
 import {
+  desbloquearAudio,
+  tocarBocina,
+  type BocinaTipo,
+} from '@/lib/audio-marcador';
+
+// Catálogo de bocinas (sync con SQL 34 y audio-marcador.ts).
+const BOCINAS: Array<{
+  key: BocinaTipo;
+  emoji: string;
+  label: string;
+  hint: string;
+}> = [
+  { key: 'ncaa',        emoji: '🏟️', label: 'NCAA',        hint: 'Universitario, grave con vibrato leve' },
+  { key: 'nba',         emoji: '🏀', label: 'NBA',         hint: 'Arena pro — más grave y con wobble' },
+  { key: 'high_school', emoji: '🏫', label: 'High school', hint: 'Aguda y seca, gym de colegio' },
+  { key: 'air_horn',    emoji: '📢', label: 'Air horn',    hint: 'Festivalero, aguda y brillante' },
+];
+import {
   actualizarEstilo,
   cambiarFaltas,
   cambiarPeriodo,
@@ -41,6 +59,9 @@ function FormEstilo({ m }: { m: Marcador }) {
   const [cpv, setCpv] = useState<string>(m.color_puntos_visitante ?? '#ffffff');
   const [cfondo, setCfondo] = useState<string>(m.color_fondo ?? '#000000');
   const [neon, setNeon] = useState<boolean>(m.neon ?? false);
+  const [bocinaSel, setBocinaSel] = useState<BocinaTipo>(
+    (m.bocina_tipo as BocinaTipo | undefined) ?? 'ncaa',
+  );
   // Sincroniza si otro admin cambia el estilo desde otra sesión (postgres_changes).
   useEffect(() => {
     if (m.fuente) setFuenteSel(m.fuente as ClaveFuente);
@@ -48,7 +69,15 @@ function FormEstilo({ m }: { m: Marcador }) {
     if (m.color_puntos_visitante) setCpv(m.color_puntos_visitante);
     if (m.color_fondo)            setCfondo(m.color_fondo);
     if (typeof m.neon === 'boolean') setNeon(m.neon);
-  }, [m.fuente, m.color_puntos_local, m.color_puntos_visitante, m.color_fondo, m.neon]);
+    if (m.bocina_tipo) setBocinaSel(m.bocina_tipo as BocinaTipo);
+  }, [m.fuente, m.color_puntos_local, m.color_puntos_visitante, m.color_fondo, m.neon, m.bocina_tipo]);
+
+  // Preview del sonido — el click es user-gesture, así que podemos desbloquear
+  // audio e inmediatamente reproducir la variante para que el admin la escuche.
+  async function previewBocina(tipo: BocinaTipo) {
+    await desbloquearAudio();
+    tocarBocina(false, tipo);
+  }
 
   // Presets pensados para PROYECTOR de bajos lúmenes.
   // Regla de brillo en DLP/LCD: blanco > amarillo > verde > cyan > rojo > azul.
@@ -109,6 +138,50 @@ function FormEstilo({ m }: { m: Marcador }) {
         <p className="text-[0.65rem] text-tenue/80 pl-1">
           Para proyector de bajos lúmenes usá <b className="text-white">Blanco</b> o <b className="text-green-300">Verde</b> — son 2-3× más brillantes que rojo/azul en proyectores DLP/LCD.
         </p>
+      </div>
+
+      {/* Selector de bocina — cada opción tiene botón ▶ para pre-escuchar. */}
+      <div>
+        <label className="block text-xs text-tenue mb-2 uppercase tracking-widest">
+          Bocina
+        </label>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {BOCINAS.map((b) => {
+            const activa = bocinaSel === b.key;
+            return (
+              <div
+                key={b.key}
+                className={`rounded-xl p-3 ring-1 transition ${
+                  activa
+                    ? 'bg-orange-600/25 ring-orange-500/60'
+                    : 'bg-black/30 ring-white/10 hover:bg-black/50'
+                }`}
+              >
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bocina_tipo"
+                    value={b.key}
+                    checked={activa}
+                    onChange={() => setBocinaSel(b.key)}
+                    className="sr-only"
+                  />
+                  <span className="text-2xl leading-none">{b.emoji}</span>
+                  <span className="flex-1 text-sm font-semibold text-white truncate">{b.label}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); previewBocina(b.key); }}
+                    title={`Pre-escuchar ${b.label}`}
+                    className="rounded-full bg-white/10 ring-1 ring-white/20 hover:bg-white/20 w-8 h-8 inline-flex items-center justify-center text-white text-xs font-bold"
+                  >
+                    ▶
+                  </button>
+                </label>
+                <p className="mt-1 text-[0.65rem] text-tenue leading-tight">{b.hint}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Neón: halo brillante alrededor del puntaje. */}
