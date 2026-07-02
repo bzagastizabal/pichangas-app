@@ -169,7 +169,11 @@ function PanelEquipo({
           para que no se choquen los dos paneles. vh marca el alto, vw el
           ancho disponible en cada panel (~50vw en 2 columnas). */}
       <p
-        className={`${fuenteCls} font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
+        // w-full + text-center: sin esto el <p> se encoge al ancho del contenido
+        // y el items-center del panel lo alinea por su borde derecho cuando
+        // "7" (1 dig) y "87" (2 dig) tienen anchos distintos — el score de 1
+        // dig quedaba corrido a la derecha respecto del eje del panel.
+        className={`w-full text-center ${fuenteCls} font-black tabular-nums leading-none ${flash ? 'animate-flash-score' : ''}`}
         style={{
           // En mega crecemos al máximo: min(92vh, vwPunto*vw). vwPunto se
           // calcula por dígitos × ratio del glifo de la fuente elegida.
