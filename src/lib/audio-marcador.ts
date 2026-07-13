@@ -62,34 +62,70 @@ export function tocarBeep(volumen = 0.25): void {
 // Google es-US en Android). Si no hay ninguna, usa la default del sistema.
 
 let vozPref: SpeechSynthesisVoice | null = null;
+const VOZ_KEY = 'marcador.voz'; // localStorage — nombre exacto de la voz.
 
-function elegirVozFemenina(voces: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  // Prioridad: Monica > Paulina > Google es-* > cualquier es-* con "fem" o
-  // nombre femenino conocido > primer es-* > null.
+// Nombres masculinos conocidos que priorizamos EVITAR (por si el sistema
+// solo tiene una voz "es-" y es masculina). No es exhaustivo — el usuario
+// siempre puede elegir manualmente desde el visor.
+const NOMBRES_MASCULINOS = [
+  'Juan', 'Diego', 'Jorge', 'Pablo', 'Enrique', 'Carlos', 'Manuel',
+  'Miguel', 'Roberto', 'Luis',
+  // iOS/macOS
+  'Jorge',
+  // Microsoft es-
+  'Pablo', 'Sergio', 'Alonso',
+];
+
+// Nombres femeninos conocidos que priorizamos.
+const NOMBRES_FEMENINOS = [
+  'Monica', 'Mónica', 'Paulina', 'Sabina', 'Helena', 'Laura',
+  'Esperanza', 'Marisol', 'Isabela', 'Camila', 'Elena', 'Salma',
+  'Sofía', 'Dalia', 'Ximena',
+];
+
+function esFemenina(nombre: string): boolean {
+  return NOMBRES_FEMENINOS.some((f) => nombre.includes(f));
+}
+function esMasculina(nombre: string): boolean {
+  return NOMBRES_MASCULINOS.some((m) => nombre.includes(m));
+}
+
+function elegirVozAuto(voces: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const es = voces.filter((v) => v.lang.toLowerCase().startsWith('es'));
   if (!es.length) return null;
-  const preferidas = ['Monica', 'Mónica', 'Paulina', 'Sabina', 'Helena', 'Laura'];
-  for (const p of preferidas) {
-    const match = es.find((v) => v.name.includes(p));
-    if (match) return match;
-  }
-  const google = es.find((v) => v.name.toLowerCase().includes('google'));
+  // 1) Femenina conocida.
+  const fem = es.find((v) => esFemenina(v.name));
+  if (fem) return fem;
+  // 2) Google (suele ser femenina en Android/Chrome).
+  const google = es.find((v) => v.name.toLowerCase().includes('google') && !esMasculina(v.name));
   if (google) return google;
+  // 3) Cualquiera que NO esté en la lista masculina.
+  const noMasc = es.find((v) => !esMasculina(v.name));
+  if (noMasc) return noMasc;
+  // 4) Última: cualquier es-*.
   return es[0] ?? null;
 }
 
 function cargarVozPref(): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   const voces = window.speechSynthesis.getVoices();
-  if (voces.length) {
-    vozPref = elegirVozFemenina(voces);
-  } else {
-    // El API expone las voces asincrónicamente en Chrome; retrasamos.
+  const aplicar = (voces: SpeechSynthesisVoice[]) => {
+    // Preferencia guardada por el usuario tiene prioridad si aún existe.
+    const guardado = typeof localStorage !== 'undefined' ? localStorage.getItem(VOZ_KEY) : null;
+    if (guardado) {
+      const encontrada = voces.find((v) => v.name === guardado);
+      if (encontrada) {
+        vozPref = encontrada;
+        return;
+      }
+    }
+    vozPref = elegirVozAuto(voces);
+  };
+  if (voces.length) aplicar(voces);
+  else {
     window.speechSynthesis.addEventListener(
       'voiceschanged',
-      () => {
-        vozPref = elegirVozFemenina(window.speechSynthesis.getVoices());
-      },
+      () => aplicar(window.speechSynthesis.getVoices()),
       { once: true },
     );
   }
@@ -107,6 +143,45 @@ export function anunciarVoz(texto: string, opciones?: { rate?: number; volumen?:
   if (vozPref) u.voice = vozPref;
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
+}
+
+// Lista las voces en español disponibles en este dispositivo. Devuelve un
+// array; puede estar vacío en el primer render (voiceschanged aún no disparó)
+// — el UI debe refrescarse cuando cambia.
+export function listarVocesEs(): SpeechSynthesisVoice[] {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
+  return window.speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es'));
+}
+
+// Permite al usuario forzar una voz específica. Persiste el nombre en
+// localStorage (por-dispositivo, no per-marcador porque las voces disponibles
+// dependen del sistema del que ve el marcador).
+export function setVozPreferida(nombre: string | null): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (!nombre) {
+    localStorage.removeItem(VOZ_KEY);
+    vozPref = elegirVozAuto(window.speechSynthesis.getVoices());
+    return;
+  }
+  const voces = window.speechSynthesis.getVoices();
+  const v = voces.find((x) => x.name === nombre);
+  if (!v) return;
+  vozPref = v;
+  localStorage.setItem(VOZ_KEY, nombre);
+}
+
+// Nombre de la voz actualmente activa (para mostrarlo en el UI).
+export function nombreVozActiva(): string | null {
+  return vozPref?.name ?? null;
+}
+
+// Suscripción a cambios en el catálogo de voces del navegador (algunos SO las
+// cargan asincrónicamente). Devuelve un unsub para React useEffect.
+export function suscribirVoces(cb: () => void): () => void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return () => {};
+  const handler = () => cb();
+  window.speechSynthesis.addEventListener('voiceschanged', handler);
+  return () => window.speechSynthesis.removeEventListener('voiceschanged', handler);
 }
 
 // Tipos de bocina disponibles — sync con SQL 34.

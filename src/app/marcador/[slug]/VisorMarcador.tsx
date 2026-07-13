@@ -13,6 +13,10 @@ import {
   anunciarVoz,
   audioDesbloqueado,
   desbloquearAudio,
+  listarVocesEs,
+  nombreVozActiva,
+  setVozPreferida,
+  suscribirVoces,
   tocarBeep,
   tocarBocina,
 } from '@/lib/audio-marcador';
@@ -52,6 +56,68 @@ function useFlashAlCambiar<T>(valor: T, duracionMs = 700): boolean {
     }
   }, [valor, duracionMs]);
   return activo;
+}
+
+// Selector de voz: dropdown flotante para elegir voz de Web Speech. Se
+// muestra sólo en modo cronómetro y sólo cuando hay voces disponibles.
+// Al cambiar, hace un preview de "Hola" con la voz nueva y persiste la
+// elección en localStorage.
+function SelectorVoz() {
+  const [voces, setVoces] = useState<SpeechSynthesisVoice[]>([]);
+  const [activa, setActiva] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    const refresh = () => {
+      setVoces(listarVocesEs());
+      setActiva(nombreVozActiva());
+    };
+    refresh();
+    const unsub = suscribirVoces(refresh);
+    return unsub;
+  }, []);
+
+  if (!voces.length) return null;
+
+  function elegir(nombre: string) {
+    setVozPreferida(nombre);
+    setActiva(nombre);
+    setAbierto(false);
+    anunciarVoz('Uno dos tres', { volumen: 0.8, rate: 1.1 });
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="inline-flex items-center gap-1 rounded-full bg-white/5 ring-1 ring-white/15 text-zinc-300 px-3 h-9 text-xs hover:bg-white/10"
+        title="Cambiar voz del cronómetro"
+      >
+        <span>🎙️</span>
+        <span className="max-w-[10rem] truncate">{activa ?? 'Voz auto'}</span>
+      </button>
+      {abierto && (
+        <div className="absolute right-0 top-11 z-30 w-64 max-h-80 overflow-y-auto rounded-lg bg-zinc-900 ring-1 ring-white/15 shadow-xl p-1">
+          {voces.map((v) => (
+            <button
+              key={v.name}
+              type="button"
+              onClick={() => elegir(v.name)}
+              className={`w-full text-left px-3 py-1.5 text-xs rounded transition ${
+                activa === v.name
+                  ? 'bg-orange-500/25 text-orange-100'
+                  : 'text-zinc-200 hover:bg-white/5'
+              }`}
+            >
+              <div className="font-medium truncate">{v.name}</div>
+              <div className="text-tenue text-[0.65rem]">{v.lang}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Cronómetro: umbrales de anuncio de voz (ms restantes). Cuando el reloj cae
@@ -485,6 +551,7 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
       >
         {/* Botones flotantes */}
         <div className="absolute right-3 top-3 z-20 flex items-center gap-2 opacity-30 hover:opacity-100 transition">
+          {sonidoOn && <SelectorVoz />}
           <button
             type="button"
             onClick={alternarSonido}
