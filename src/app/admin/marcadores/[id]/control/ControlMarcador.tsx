@@ -35,6 +35,7 @@ const BOCINAS: Array<{
 ];
 import {
   actualizarEstilo,
+  ajustarCronometro,
   cambiarFaltas,
   cambiarPeriodo,
   cambiarPuntos,
@@ -545,6 +546,118 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
   const conReloj: boolean = m.tiene_reloj_periodo ?? true;
   const conShot: boolean = m.tiene_shot_clock ?? true;
   const conPeriodo: boolean = m.tiene_periodo ?? true;
+  const esCronometro: boolean = m.es_cronometro ?? false;
+
+  // --- Modo cronómetro: UI dedicada ---------------------------------------
+  if (esCronometro) {
+    const mm = Math.floor(relojMs / 60_000);
+    const ss = Math.floor((relojMs % 60_000) / 1000);
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 text-sm">
+          <Image
+            src="/cmt_insignia.png"
+            alt="CMT BasketBall Club"
+            width={48}
+            height={48}
+            className="h-9 w-9 drop-shadow-[0_0_12px_rgba(251,146,60,0.4)]"
+          />
+          <div className="leading-tight">
+            <p className="font-semibold uppercase tracking-widest text-zinc-200">
+              Cronómetro
+            </p>
+            {m.titulo && <p className="text-xs text-tenue truncate max-w-[24ch]">{m.titulo}</p>}
+          </div>
+          <span
+            className={`ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ring-1 ${
+              m.reloj_corriendo
+                ? 'bg-red-500/15 ring-red-500/40 text-red-200'
+                : 'bg-white/5 ring-white/15 text-zinc-300'
+            }`}
+          >
+            {m.reloj_corriendo ? 'LIVE' : 'PAUSA'}
+          </span>
+        </div>
+
+        {/* Display grande */}
+        <div className="rounded-2xl bg-gradient-to-b from-tarjeta/80 to-black/60 backdrop-blur ring-1 ring-white/10 p-6 text-center">
+          <p
+            className={`font-orbitron font-black tabular-nums leading-none ${
+              relojBajo ? 'animate-glow-soft' : ''
+            }`}
+            style={{
+              fontSize: 'clamp(4.5rem, 22vw, 12rem)',
+              color: relojBajo ? '#ef4444' : '#ffffff',
+              textShadow: relojBajo
+                ? '0 0 30px rgba(239,68,68,0.7)'
+                : '0 0 20px rgba(255,255,255,0.3)',
+            }}
+          >
+            {mm}:{ss.toString().padStart(2, '0')}
+          </p>
+        </div>
+
+        {/* Play grande + reset */}
+        <div className="flex flex-col items-center gap-3">
+          <FormBtn action={fast(togglePlay, () => ({ t: 'play', nowMs: Date.now() }))}>
+            <HiddenId id={m.id} />
+            <button
+              type="submit"
+              className={`relative inline-flex h-24 w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
+                m.reloj_corriendo ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'
+              }`}
+              aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+            >
+              <IconoPlay pausa={m.reloj_corriendo} />
+            </button>
+          </FormBtn>
+          <FormBtn action={fast(resetReloj, { t: 'rReloj' })}>
+            <HiddenId id={m.id} />
+            <Boton tono="neutro">↻ Reset al total</Boton>
+          </FormBtn>
+        </div>
+
+        {/* Ajustes rápidos ±30/±10/±5 segundos */}
+        <div className="rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ring-white/10 p-4 space-y-3">
+          <p className="text-xs uppercase tracking-widest text-tenue">Ajuste rápido</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[-30, -10, -5, 5, 10, 30].map((d) => (
+              <FormBtn key={d} action={ajustarCronometro}>
+                <HiddenId id={m.id} />
+                <input type="hidden" name="delta" value={d} />
+                <Boton tono={d < 0 ? 'rojo' : 'primario'} ancho="full">
+                  {d > 0 ? `+${d}s` : `${d}s`}
+                </Boton>
+              </FormBtn>
+            ))}
+          </div>
+        </div>
+
+        {/* Título editable + estilo (reuso FormEstilo) */}
+        <div className="rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ring-white/10 p-4 space-y-4">
+          <form action={renombrarEquipos} className="grid gap-3">
+            <HiddenId id={m.id} />
+            <input type="hidden" name="nombre_local" value={m.nombre_local} />
+            <input type="hidden" name="nombre_visitante" value={m.nombre_visitante} />
+            <div>
+              <label className="block text-xs text-tenue mb-1 uppercase tracking-widest">
+                Título del cronómetro
+              </label>
+              <input
+                name="titulo"
+                defaultValue={m.titulo ?? ''}
+                placeholder="Ej. Calentamiento, Descanso"
+                maxLength={200}
+                className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-full"
+              />
+            </div>
+            <Boton tono="primario">Guardar</Boton>
+          </form>
+          <FormEstilo m={m} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-5">

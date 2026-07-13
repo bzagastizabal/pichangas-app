@@ -339,6 +339,9 @@ export type Marcador = {
   neon: boolean;
   // Tipo de bocina (SQL 34). ncaa (default) / nba / high_school / air_horn.
   bocina_tipo: 'ncaa' | 'nba' | 'high_school' | 'air_horn';
+  // Modo cronometro (SQL 35). Cuando true, el visor muestra reloj gigante
+  // con anuncios de voz automaticos; duracion_periodo_seg = total.
+  es_cronometro: boolean;
   expira_en: string;
   creado_por: string;
   created_at: string;

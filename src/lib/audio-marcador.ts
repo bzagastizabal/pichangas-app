@@ -55,6 +55,60 @@ export function tocarBeep(volumen = 0.25): void {
   osc.stop(t + 0.15);
 }
 
+// ---- Voz sintetizada (Web Speech API) ----------------------------------
+// Anuncia texto con voz femenina en español para el modo cronometro.
+// La API es síncrona; los navegadores traen voces preinstaladas y elegimos
+// la mejor femenina en 'es-*' (Mónica en macOS/iOS, Paulina en Windows,
+// Google es-US en Android). Si no hay ninguna, usa la default del sistema.
+
+let vozPref: SpeechSynthesisVoice | null = null;
+
+function elegirVozFemenina(voces: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  // Prioridad: Monica > Paulina > Google es-* > cualquier es-* con "fem" o
+  // nombre femenino conocido > primer es-* > null.
+  const es = voces.filter((v) => v.lang.toLowerCase().startsWith('es'));
+  if (!es.length) return null;
+  const preferidas = ['Monica', 'Mónica', 'Paulina', 'Sabina', 'Helena', 'Laura'];
+  for (const p of preferidas) {
+    const match = es.find((v) => v.name.includes(p));
+    if (match) return match;
+  }
+  const google = es.find((v) => v.name.toLowerCase().includes('google'));
+  if (google) return google;
+  return es[0] ?? null;
+}
+
+function cargarVozPref(): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  const voces = window.speechSynthesis.getVoices();
+  if (voces.length) {
+    vozPref = elegirVozFemenina(voces);
+  } else {
+    // El API expone las voces asincrónicamente en Chrome; retrasamos.
+    window.speechSynthesis.addEventListener(
+      'voiceschanged',
+      () => {
+        vozPref = elegirVozFemenina(window.speechSynthesis.getVoices());
+      },
+      { once: true },
+    );
+  }
+}
+
+// Reproduce el texto con la voz preferida. Cancela cualquier anuncio en curso
+// para que los números de la cuenta detallada no se apilen.
+export function anunciarVoz(texto: string, opciones?: { rate?: number; volumen?: number }): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (!vozPref) cargarVozPref();
+  const u = new SpeechSynthesisUtterance(texto);
+  u.lang = vozPref?.lang ?? 'es-ES';
+  u.rate = opciones?.rate ?? 1.15;
+  u.volume = opciones?.volumen ?? 1;
+  if (vozPref) u.voice = vozPref;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
 // Tipos de bocina disponibles — sync con SQL 34.
 export type BocinaTipo = 'ncaa' | 'nba' | 'high_school' | 'air_horn';
 

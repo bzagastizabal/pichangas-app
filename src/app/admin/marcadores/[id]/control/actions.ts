@@ -102,6 +102,29 @@ export async function togglePlay(formData: FormData): Promise<void> {
   }
 }
 
+// Suma/resta segundos al reloj — útil para el modo cronómetro. Si está
+// corriendo, congela → aplica delta → vuelve a arrancar para no perder ms
+// residuales por el tick del RAF.
+export async function ajustarCronometro(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  const delta = parseInt((formData.get('delta') as string) || '0', 10);
+  if (!id || !delta) return;
+  const m = await leer(id);
+  if (!m) return;
+  const supabase = await createClient();
+  const restanteReal = msRestantes(m.reloj_restante_ms, m.reloj_corriendo, m.reloj_inicio);
+  const nuevo = Math.max(0, restanteReal + delta * 1000);
+  const upd: Record<string, unknown> = {
+    reloj_restante_ms: nuevo,
+  };
+  if (m.reloj_corriendo) {
+    // Rearrancamos desde el nuevo valor.
+    upd.reloj_inicio = new Date().toISOString();
+  }
+  await supabase.from('marcadores').update(upd).eq('id', id);
+}
+
 // Resetea el reloj principal al inicio del periodo (sin tocar puntos).
 export async function resetReloj(formData: FormData): Promise<void> {
   await requireAdmin();

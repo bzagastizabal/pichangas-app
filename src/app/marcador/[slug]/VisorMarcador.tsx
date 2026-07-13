@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { formatearReloj, msRestantes, type Marcador } from '@/lib/types';
 import {
+  anunciarVoz,
   audioDesbloqueado,
   desbloquearAudio,
   tocarBeep,
@@ -52,6 +53,26 @@ function useFlashAlCambiar<T>(valor: T, duracionMs = 700): boolean {
   }, [valor, duracionMs]);
   return activo;
 }
+
+// Cronómetro: umbrales de anuncio de voz (ms restantes). Cuando el reloj cae
+// por debajo de un umbral y aún no lo cruzamos, disparamos el texto. Orden
+// de mayor a menor porque en el tick tomamos el primer match.
+const ANUNCIOS_TOPES: Array<{ ms: number; texto: string }> = [
+  { ms: 180_000, texto: 'Tres minutos' },
+  { ms: 120_000, texto: 'Dos minutos' },
+  { ms:  60_000, texto: 'Un minuto' },
+  { ms:  30_000, texto: '30 segundos' },
+  { ms:  10_000, texto: 'Diez' },
+  { ms:   9_000, texto: 'Nueve' },
+  { ms:   8_000, texto: 'Ocho' },
+  { ms:   7_000, texto: 'Siete' },
+  { ms:   6_000, texto: 'Seis' },
+  { ms:   5_000, texto: 'Cinco' },
+  { ms:   4_000, texto: 'Cuatro' },
+  { ms:   3_000, texto: 'Tres' },
+  { ms:   2_000, texto: 'Dos' },
+  { ms:   1_000, texto: 'Uno' },
+];
 
 // Sync con SQL 31 + globals.css. Devuelve la clase Tailwind para la fuente.
 const FUENTE_CLS: Record<string, string> = {
@@ -281,6 +302,9 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   const lastShotSecRef = useRef<number>(Math.ceil(inicial.shot_restante_ms / 1000));
   const lastRelojPosRef = useRef<boolean>(inicial.reloj_restante_ms > 0);
   const lastBocinaRef = useRef<number>(inicial.bocina_pulsos ?? 0);
+  // Cronómetro: último threshold cruzado (ms). Inicializamos en +Infinity
+  // para que el primer cruce que ocurra por debajo lo dispare.
+  const lastAnuncioRef = useRef<number>(Number.POSITIVE_INFINITY);
 
   async function alternarSonido() {
     if (sonidoOn) {
@@ -288,6 +312,11 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
       return;
     }
     const ok = await desbloquearAudio();
+    // Warm-up de SpeechSynthesis dentro del gesture del usuario. Sin esto,
+    // algunos navegadores (iOS Safari) bloquean el primer speak posterior.
+    if (ok && m.es_cronometro && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      anunciarVoz('Cronómetro listo', { volumen: 0.6, rate: 1.05 });
+    }
     setSonidoOn(ok);
   }
 
@@ -350,6 +379,25 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         lastShotSecRef.current = Math.ceil(nuevoShot / 1000);
       }
 
+      // Cronómetro: reset del último anuncio si el reloj subió (reset o +30s
+      // del admin). Sin esto, después de un +30s no volvería a anunciar
+      // "un minuto" cuando cruzáramos ese umbral otra vez.
+      if (m.es_cronometro && nuevoReloj > lastAnuncioRef.current) {
+        lastAnuncioRef.current = Number.POSITIVE_INFINITY;
+      }
+      // Cronómetro: anuncios de voz en los thresholds (una sola vez cada uno).
+      // Solo aplica cuando el reloj está corriendo (no queremos que anuncie
+      // al retroceder el tiempo por un ajuste manual del admin).
+      if (sonidoOn && m.es_cronometro && m.reloj_corriendo) {
+        for (const th of ANUNCIOS_TOPES) {
+          if (nuevoReloj <= th.ms && lastAnuncioRef.current > th.ms) {
+            anunciarVoz(th.texto);
+            lastAnuncioRef.current = th.ms;
+            break;
+          }
+        }
+      }
+
       // Bocina larga al expirar el reloj de juego (solo si estaba corriendo).
       const positivo = nuevoReloj > 0;
       if (
@@ -409,6 +457,94 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
   const fuenteClsM = FUENTE_CLS[fuenteM] ?? FUENTE_CLS.orbitron;
   const HEX = /^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/;
   const colorFondoM = m.color_fondo && HEX.test(m.color_fondo) ? m.color_fondo : '#000000';
+  const colorPtsGlobal = m.color_puntos_local && HEX.test(m.color_puntos_local)
+    ? m.color_puntos_local : '#ffffff';
+
+  // Modo cronómetro: layout completamente distinto (solo reloj gigante).
+  if (m.es_cronometro) {
+    // formato MM:SS o M:SS.MMM cuando queda poco (últimos 10s: mostramos décimas).
+    const bajos = relojMs < 10_000;
+    const totalSeg = Math.max(0, Math.ceil(relojMs / 1000));
+    const mm = Math.floor(totalSeg / 60);
+    const ss = totalSeg % 60;
+    const decs = Math.max(0, Math.floor((relojMs % 1000) / 100));
+    const textoReloj = bajos
+      ? `${Math.floor(relojMs / 1000)}.${decs}`
+      : `${mm}:${ss.toString().padStart(2, '0')}`;
+    return (
+      <div
+        ref={rootRef}
+        onDoubleClick={pantallaCompleta}
+        className="relative min-h-[100dvh] w-full overflow-hidden text-white select-none"
+        style={{
+          backgroundColor: colorFondoM,
+          backgroundImage:
+            'radial-gradient(ellipse at top, rgba(255,255,255,0.06), transparent 70%),' +
+            'radial-gradient(ellipse at bottom, rgba(0,0,0,0.35), transparent 70%)',
+        }}
+      >
+        {/* Botones flotantes */}
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 opacity-30 hover:opacity-100 transition">
+          <button
+            type="button"
+            onClick={alternarSonido}
+            aria-label={sonidoOn ? 'Silenciar sonido' : 'Activar sonido'}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 transition ${
+              sonidoOn
+                ? 'bg-green-500/15 ring-green-400/40 text-green-300'
+                : 'bg-white/5 ring-white/15 text-zinc-400'
+            }`}
+            title={sonidoOn ? 'Silenciar' : 'Activar sonido / voz'}
+          >
+            <span className="text-base">{sonidoOn ? '🔊' : '🔇'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={pantallaCompleta}
+            aria-label="Pantalla completa"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/15 text-zinc-300"
+            title="Pantalla completa"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+              <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center">
+          {m.titulo && (
+            <p
+              className="uppercase tracking-[0.35em] font-semibold text-zinc-300 truncate mb-4"
+              style={{ fontSize: 'clamp(1rem, 3vmin, 3.5rem)' }}
+            >
+              {m.titulo}
+            </p>
+          )}
+          <p
+            className={`${fuenteClsM} font-black tabular-nums leading-none w-full text-center ${
+              bajos ? 'animate-glow-soft' : ''
+            }`}
+            style={{
+              // Reloj gigante — se llena en vw pero limitado por vh. En cuenta
+              // detallada (10s) el número es más corto: crece más grande.
+              fontSize: bajos
+                ? 'clamp(10rem, min(80vh, 55vw), 140rem)'
+                : 'clamp(6rem, min(70vh, 32vw), 120rem)',
+              color: bajos ? '#ef4444' : colorPtsGlobal,
+              textShadow: m.neon
+                ? `0 0 12px ${bajos ? '#ef4444' : colorPtsGlobal}, 0 0 40px ${bajos ? '#ef4444' : colorPtsGlobal}, 0 0 90px ${bajos ? '#ef4444' : colorPtsGlobal}`
+                : bajos
+                  ? '0 0 40px rgba(239,68,68,0.85), 0 0 100px rgba(239,68,68,0.4)'
+                  : '0 0 30px rgba(255,255,255,0.35), 0 0 90px rgba(255,255,255,0.12)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {textoReloj}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
