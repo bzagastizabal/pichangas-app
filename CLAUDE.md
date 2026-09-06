@@ -192,6 +192,18 @@ decide si la pichanga se realiza o se cancela.)
     WhatsApp ve `🏀 LOCAL 47 – 52 VISITANTE · Marcador en vivo · Q3` con la card "MARCADOR EN
     VIVO" en rojo, no la card genérica del club.
   - BotonAyuda se oculta en `/marcador/*` para no contaminar la proyección.
+  - **SQL 36 — avisos configurables del cronómetro**: `avisos_seg int[]` (hitos de voz,
+    default {180,120,60,30,10}), `avisos_repetir` (default 2 — cada aviso se dice dos veces),
+    `beep_desde_seg` (default 15 — beep por segundo hasta 1, los últimos 5 más agudos) y
+    `voz_cuenta_desde` (cuenta hablada de los últimos N seg, default 0 = off; era el viejo
+    10→1 hardcodeado). Lógica en `lib/cronometro-avisos.ts` (`configAvisos`, `textoAviso`)
+    + `<AvisosCronometro/>`; el visor dispara por CRUCE DE SEGUNDO hacia abajo, así un +30 s
+    o un reset no disparan avisos falsos. `anunciarVoz(texto, { veces })` encola N utterances.
+  - **Control en la misma vista**: `/marcador/[slug]` detecta admin (`getSesion()` en la page)
+    y renderiza `DockCronometro` sobre el reloj — play/pausa, ±10/±30 s, reset, bocina, avisos
+    y tiempo total, pensado para operar desde el móvil sin abrir el panel aparte. El dock emite
+    por el canal fast (`EventoFast.ajuste` nuevo) para que el proyector vea el cambio en ~50 ms.
+    El panel `/admin/marcadores/[id]/control` sigue existiendo (desktop) y linkea al visor.
   - Pendiente: integraciones de proyección al TV (Wake Lock para evitar sleep, QR del visor en
     el control, modo overlay transparente para OBS, manifest PWA para Android TV).
 

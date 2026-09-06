@@ -4,6 +4,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getSesion } from '@/lib/auth';
 import type { Marcador } from '@/lib/types';
 import { VisorMarcador } from './VisorMarcador';
 
@@ -66,5 +67,11 @@ export default async function MarcadorPublicoPage({
     );
   }
 
-  return <VisorMarcador inicial={m} />;
+  // Si quien abre el link es admin, el visor muestra el dock de control en la
+  // misma pantalla (operar desde el móvil sin abrir el panel aparte). La RLS
+  // sigue siendo la barrera real: las Server Actions revalidan con requireAdmin.
+  const { perfil } = await getSesion();
+  const puedeControlar = perfil?.rol === 'administrador';
+
+  return <VisorMarcador inicial={m} puedeControlar={puedeControlar} />;
 }

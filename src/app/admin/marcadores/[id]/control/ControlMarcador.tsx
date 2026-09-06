@@ -33,6 +33,7 @@ const BOCINAS: Array<{
   { key: 'high_school', emoji: '🏫', label: 'High school', hint: 'Aguda y seca, gym de colegio' },
   { key: 'air_horn',    emoji: '📢', label: 'Air horn',    hint: 'Festivalero, aguda y brillante' },
 ];
+import { AvisosCronometro } from '@/components/AvisosCronometro';
 import {
   actualizarEstilo,
   ajustarCronometro,
@@ -632,6 +633,27 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
             ))}
           </div>
         </div>
+
+        {/* Avisos configurables (SQL 36) */}
+        <div className="rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ring-white/10 p-4">
+          <AvisosCronometro m={m} />
+        </div>
+
+        {/* Atajo: el visor ya trae los mismos controles para el admin. */}
+        <a
+          href={`/marcador/${m.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-2 rounded-2xl bg-orange-600/15 ring-1 ring-orange-500/30 px-4 py-3 text-sm text-orange-100 hover:bg-orange-600/25 transition"
+        >
+          <span>
+            📱 <b>Abrir el visor y controlarlo ahí mismo</b>
+            <span className="block text-xs text-orange-200/70">
+              Como admin ves el dock de control sobre el reloj: play, ±segundos y avisos.
+            </span>
+          </span>
+          <span aria-hidden>↗</span>
+        </a>
 
         {/* Título editable + estilo (reuso FormEstilo) */}
         <div className="rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ring-white/10 p-4 space-y-4">

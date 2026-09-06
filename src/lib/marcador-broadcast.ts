@@ -13,6 +13,7 @@ export type EventoFast =
   | { t: 'bocina' }
   | { t: 'play';    nowMs: number }
   | { t: 'rReloj' }
+  | { t: 'ajuste';  d: number; nowMs: number }
   | { t: 'rShot';   seg: number; nowMs: number };
 
 export function canalFast(id: string): string {
@@ -94,6 +95,19 @@ export function aplicarEventoFast(m: Marcador, ev: EventoFast): Marcador {
         reloj_corriendo: false,
         reloj_inicio: null,
       };
+
+    case 'ajuste': {
+      // ±N segundos al reloj. Si corre, reancla el inicio al instante del
+      // click igual que hace el Server Action (evita perder los ms residuales).
+      const restante = m.reloj_corriendo && m.reloj_inicio
+        ? Math.max(0, m.reloj_restante_ms - (ev.nowMs - new Date(m.reloj_inicio).getTime()))
+        : m.reloj_restante_ms;
+      return {
+        ...m,
+        reloj_restante_ms: Math.max(0, restante + ev.d * 1000),
+        reloj_inicio: m.reloj_corriendo ? new Date(ev.nowMs).toISOString() : m.reloj_inicio,
+      };
+    }
 
     case 'rShot': {
       const ms = Math.max(1, ev.seg) * 1000;

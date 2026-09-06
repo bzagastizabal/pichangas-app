@@ -307,3 +307,54 @@ export async function reiniciarPartido(formData: FormData): Promise<void> {
     })
     .eq('id', id);
 }
+
+// Guarda la config de avisos del cronómetro (SQL 36). Si la migración aún no
+// corrió, ignora en silencio para no romper el panel (mismo patrón que estilo).
+export async function actualizarAvisos(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  const avisos = formData
+    .getAll('avisos_seg')
+    .map((v) => parseInt(String(v), 10))
+    .filter((n) => Number.isFinite(n) && n > 0 && n <= 3600)
+    .sort((a, b) => b - a);
+  const repetir = clamp(parseInt((formData.get('avisos_repetir') as string) || '2', 10) || 2, 1, 3);
+  const beep = clamp(parseInt((formData.get('beep_desde_seg') as string) || '15', 10) || 0, 0, 60);
+  const cuenta = clamp(parseInt((formData.get('voz_cuenta_desde') as string) || '0', 10) || 0, 0, 20);
+  const supabase = await createClient();
+  const r = await supabase
+    .from('marcadores')
+    .update({
+      avisos_seg: avisos,
+      avisos_repetir: repetir,
+      beep_desde_seg: beep,
+      voz_cuenta_desde: cuenta,
+    })
+    .eq('id', id);
+  if (r.error) return; // columnas de SQL 36 ausentes: no bloquear al admin.
+  refresh();
+}
+
+// Fija el total del cronómetro (minutos + segundos) y deja el reloj listo en
+// ese valor, pausado. Sirve para reconfigurar desde el móvil sin volver al
+// listado de marcadores.
+export async function fijarTotalCronometro(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  const min = clamp(parseInt((formData.get('crono_min') as string) || '0', 10) || 0, 0, 240);
+  const seg = clamp(parseInt((formData.get('crono_seg') as string) || '0', 10) || 0, 0, 59);
+  const total = Math.max(1, min * 60 + seg);
+  const supabase = await createClient();
+  await supabase
+    .from('marcadores')
+    .update({
+      duracion_periodo_seg: total,
+      reloj_restante_ms: total * 1000,
+      reloj_corriendo: false,
+      reloj_inicio: null,
+    })
+    .eq('id', id);
+  refresh();
+}

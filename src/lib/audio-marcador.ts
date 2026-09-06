@@ -37,14 +37,16 @@ export function audioDesbloqueado(): boolean {
   return unlocked && ctx?.state === 'running';
 }
 
-// Beep corto y agudo (1000Hz square ~120ms). Usado para los últimos 5s del shot.
-export function tocarBeep(volumen = 0.25): void {
+// Beep corto y agudo (~120ms). Usado para los últimos 5s del shot y para la
+// cuenta atrás del cronómetro (ahí subimos la frecuencia en los últimos
+// segundos para que se distinga el final sin mirar la pantalla).
+export function tocarBeep(volumen = 0.25, frecuencia = 1000): void {
   const c = ctx;
   if (!c || !unlocked) return;
   const osc = c.createOscillator();
   const gain = c.createGain();
   osc.type = 'square';
-  osc.frequency.value = 1000;
+  osc.frequency.value = frecuencia;
   const t = c.currentTime;
   gain.gain.setValueAtTime(0, t);
   gain.gain.linearRampToValueAtTime(volumen, t + 0.005);
@@ -132,17 +134,25 @@ function cargarVozPref(): void {
 }
 
 // Reproduce el texto con la voz preferida. Cancela cualquier anuncio en curso
-// para que los números de la cuenta detallada no se apilen.
-export function anunciarVoz(texto: string, opciones?: { rate?: number; volumen?: number }): void {
+// para que los números de la cuenta detallada no se apilen. `veces` repite el
+// mismo texto encolando utterances (el motor las reproduce en orden, con una
+// pausa natural entre ellas): el club pidió que cada aviso se oiga 2 veces.
+export function anunciarVoz(
+  texto: string,
+  opciones?: { rate?: number; volumen?: number; veces?: number },
+): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   if (!vozPref) cargarVozPref();
-  const u = new SpeechSynthesisUtterance(texto);
-  u.lang = vozPref?.lang ?? 'es-ES';
-  u.rate = opciones?.rate ?? 1.15;
-  u.volume = opciones?.volumen ?? 1;
-  if (vozPref) u.voice = vozPref;
+  const veces = Math.max(1, Math.min(3, Math.round(opciones?.veces ?? 1)));
   window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
+  for (let i = 0; i < veces; i++) {
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = vozPref?.lang ?? 'es-ES';
+    u.rate = opciones?.rate ?? 1.15;
+    u.volume = opciones?.volumen ?? 1;
+    if (vozPref) u.voice = vozPref;
+    window.speechSynthesis.speak(u);
+  }
 }
 
 // Lista las voces en español disponibles en este dispositivo. Devuelve un

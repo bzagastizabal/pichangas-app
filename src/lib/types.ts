@@ -342,6 +342,12 @@ export type Marcador = {
   // Modo cronometro (SQL 35). Cuando true, el visor muestra reloj gigante
   // con anuncios de voz automaticos; duracion_periodo_seg = total.
   es_cronometro: boolean;
+  // Avisos del cronometro (SQL 36). Pueden llegar undefined si la migracion
+  // aun no corrio: usar configAvisos() de lib/cronometro-avisos.
+  avisos_seg: number[] | null;
+  avisos_repetir: number | null;
+  beep_desde_seg: number | null;
+  voz_cuenta_desde: number | null;
   expira_en: string;
   creado_por: string;
   created_at: string;

@@ -7,8 +7,22 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { formatearReloj, msRestantes, type Marcador } from '@/lib/types';
+import {
+  configAvisos,
+  numeroEnPalabras,
+  textoAviso,
+} from '@/lib/cronometro-avisos';
+import { AvisosCronometro } from '@/components/AvisosCronometro';
+import {
+  ajustarCronometro,
+  fijarTotalCronometro,
+  resetReloj,
+  sonarBocina,
+  togglePlay,
+} from '@/app/admin/marcadores/[id]/control/actions';
 import {
   anunciarVoz,
   audioDesbloqueado,
@@ -120,25 +134,204 @@ function SelectorVoz() {
   );
 }
 
-// Cronómetro: umbrales de anuncio de voz (ms restantes). Cuando el reloj cae
-// por debajo de un umbral y aún no lo cruzamos, disparamos el texto. Orden
-// de mayor a menor porque en el tick tomamos el primer match.
-const ANUNCIOS_TOPES: Array<{ ms: number; texto: string }> = [
-  { ms: 180_000, texto: 'Tres minutos' },
-  { ms: 120_000, texto: 'Dos minutos' },
-  { ms:  60_000, texto: 'Un minuto' },
-  { ms:  30_000, texto: '30 segundos' },
-  { ms:  10_000, texto: 'Diez' },
-  { ms:   9_000, texto: 'Nueve' },
-  { ms:   8_000, texto: 'Ocho' },
-  { ms:   7_000, texto: 'Siete' },
-  { ms:   6_000, texto: 'Seis' },
-  { ms:   5_000, texto: 'Cinco' },
-  { ms:   4_000, texto: 'Cuatro' },
-  { ms:   3_000, texto: 'Tres' },
-  { ms:   2_000, texto: 'Dos' },
-  { ms:   1_000, texto: 'Uno' },
-];
+// Wrapper de acción: emite el evento predicho por el canal fast ANTES de
+// llamar al Server Action y lo aplica al estado local, igual que el panel de
+// control. Así el proyector (otro dispositivo) se entera en ~30-80 ms.
+type Accion = (fd: FormData) => void | Promise<void>;
+type FastFn = <A extends Accion>(accion: A, evOrFn: EventoFast | (() => EventoFast)) => A;
+
+// Fábricas de eventos fast: Date.now() se sella al hacer click, no al pintar.
+const evPlay = (): EventoFast => ({ t: 'play', nowMs: Date.now() });
+const evAjuste = (d: number): EventoFast => ({ t: 'ajuste', d, nowMs: Date.now() });
+
+// ---- Dock de control del cronómetro (misma vista) ------------------------
+// Se renderiza sobre el reloj gigante solo para administradores: permite
+// operar el cronómetro desde el móvil sin abrir /admin/marcadores/.../control.
+
+function DockCronometro({
+  m,
+  fast,
+  abierto,
+  onCerrar,
+}: {
+  m: Marcador;
+  fast: FastFn;
+  abierto: boolean;
+  onCerrar: () => void;
+}) {
+  const [panel, setPanel] = useState<'ninguno' | 'avisos' | 'total'>('ninguno');
+  const totalSeg = m.duracion_periodo_seg;
+
+  if (!abierto) return null;
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* Panel desplegable (avisos / total) */}
+      {panel !== 'ninguno' && (
+        <div className="w-full max-w-2xl max-h-[52vh] overflow-y-auto rounded-2xl bg-zinc-950/95 backdrop-blur ring-1 ring-white/15 p-4 shadow-2xl">
+          {panel === 'avisos' && <AvisosCronometro m={m} />}
+          {panel === 'total' && (
+            <form action={fijarTotalCronometro} className="space-y-3">
+              <input type="hidden" name="id" value={m.id} />
+              <p className="text-xs uppercase tracking-widest text-tenue">
+                Tiempo total (actual: {Math.floor(totalSeg / 60)}:
+                {String(totalSeg % 60).padStart(2, '0')})
+              </p>
+              <div className="flex items-end gap-2">
+                <div>
+                  <label className="block text-[0.7rem] text-tenue mb-1">Minutos</label>
+                  <input
+                    name="crono_min"
+                    type="number"
+                    min={0}
+                    max={240}
+                    defaultValue={Math.floor(totalSeg / 60)}
+                    className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-24"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[0.7rem] text-tenue mb-1">Segundos</label>
+                  <input
+                    name="crono_seg"
+                    type="number"
+                    min={0}
+                    max={59}
+                    defaultValue={totalSeg % 60}
+                    className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-24"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="h-11 px-4 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold active:scale-[0.97] transition"
+                >
+                  Aplicar
+                </button>
+              </div>
+              <p className="text-[0.7rem] text-tenue">
+                Deja el reloj en el nuevo total, pausado.
+              </p>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* Barra principal: ajustes ± y play/pausa */}
+      <div className="w-full max-w-2xl rounded-2xl bg-black/70 backdrop-blur ring-1 ring-white/15 p-2 shadow-2xl">
+        <div className="flex items-center justify-center gap-2">
+          {[-30, -10].map((d) => (
+            <form
+              key={d}
+              action={fast(ajustarCronometro, () => evAjuste(d))}
+            >
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="delta" value={d} />
+              <BotonDock tono="rojo">{d}s</BotonDock>
+            </form>
+          ))}
+
+          <form action={fast(togglePlay, evPlay)}>
+            <input type="hidden" name="id" value={m.id} />
+            <button
+              type="submit"
+              aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+              className={`inline-flex h-16 w-16 items-center justify-center rounded-full text-white ring-2 ring-white/25 shadow-lg transition active:scale-[0.95] ${
+                m.reloj_corriendo ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'
+              }`}
+            >
+              {m.reloj_corriendo ? (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
+                  <path d="M8 5l11 7-11 7V5z" />
+                </svg>
+              )}
+            </button>
+          </form>
+
+          {[10, 30].map((d) => (
+            <form
+              key={d}
+              action={fast(ajustarCronometro, () => evAjuste(d))}
+            >
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="delta" value={d} />
+              <BotonDock tono="verde">+{d}s</BotonDock>
+            </form>
+          ))}
+        </div>
+
+        {/* Fila secundaria: reset, bocina, paneles, ocultar */}
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+          <form action={fast(resetReloj, { t: 'rReloj' })}>
+            <input type="hidden" name="id" value={m.id} />
+            <BotonDock tono="neutro" pequeno>↻ Reset</BotonDock>
+          </form>
+          <form action={fast(sonarBocina, { t: 'bocina' })}>
+            <input type="hidden" name="id" value={m.id} />
+            <BotonDock tono="neutro" pequeno>📣 Bocina</BotonDock>
+          </form>
+          <button
+            type="button"
+            onClick={() => setPanel((p) => (p === 'avisos' ? 'ninguno' : 'avisos'))}
+            className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
+              panel === 'avisos'
+                ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
+                : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
+            }`}
+          >
+            🔔 Avisos
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanel((p) => (p === 'total' ? 'ninguno' : 'total'))}
+            className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
+              panel === 'total'
+                ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
+                : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
+            }`}
+          >
+            ⏱ Total
+          </button>
+          <button
+            type="button"
+            onClick={onCerrar}
+            className="h-10 px-3 rounded-xl text-xs font-bold bg-zinc-800/80 ring-1 ring-white/10 text-zinc-300 hover:bg-zinc-700/80 active:scale-[0.97] transition"
+          >
+            ✕ Ocultar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BotonDock({
+  children,
+  tono = 'neutro',
+  pequeno = false,
+}: {
+  children: React.ReactNode;
+  tono?: 'neutro' | 'verde' | 'rojo';
+  pequeno?: boolean;
+}) {
+  const tonos = {
+    neutro: 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80',
+    verde:  'bg-green-600 ring-green-400/40 text-white hover:bg-green-500',
+    rojo:   'bg-red-600 ring-red-400/40 text-white hover:bg-red-500',
+  }[tono];
+  const tam = pequeno ? 'h-10 px-3 text-xs' : 'h-14 px-4 text-base';
+  return (
+    <button
+      type="submit"
+      className={`inline-flex items-center justify-center rounded-xl font-bold ring-1 transition active:scale-[0.97] ${tonos} ${tam}`}
+    >
+      {children}
+    </button>
+  );
+}
 
 // Sync con SQL 31 + globals.css. Devuelve la clase Tailwind para la fuente.
 const FUENTE_CLS: Record<string, string> = {
@@ -357,20 +550,31 @@ function ShotClock({ ms, fuenteCls = 'font-orbitron' }: { ms: number; fuenteCls?
 
 // ---- Visor principal -----------------------------------------------------
 
-export function VisorMarcador({ inicial }: { inicial: Marcador }) {
+export function VisorMarcador({
+  inicial,
+  puedeControlar = false,
+}: {
+  inicial: Marcador;
+  // true solo para administradores: habilita el dock de control en la misma
+  // pantalla (operar el cronómetro desde el móvil sin abrir /admin).
+  puedeControlar?: boolean;
+}) {
   const [m, setM] = useState<Marcador>(inicial);
   const [relojMs, setRelojMs] = useState(inicial.reloj_restante_ms);
   const [shotMs, setShotMs] = useState(inicial.shot_restante_ms);
   const [sonidoOn, setSonidoOn] = useState(false);
+  const [dockAbierto, setDockAbierto] = useState(puedeControlar);
   const rafRef = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const fastRef = useRef<RealtimeChannel | null>(null);
   // Refs para detectar transiciones de segundo sin re-disparar el RAF.
   const lastShotSecRef = useRef<number>(Math.ceil(inicial.shot_restante_ms / 1000));
   const lastRelojPosRef = useRef<boolean>(inicial.reloj_restante_ms > 0);
   const lastBocinaRef = useRef<number>(inicial.bocina_pulsos ?? 0);
-  // Cronómetro: último threshold cruzado (ms). Inicializamos en +Infinity
-  // para que el primer cruce que ocurra por debajo lo dispare.
-  const lastAnuncioRef = useRef<number>(Number.POSITIVE_INFINITY);
+  // Cronómetro: último segundo mostrado. Los avisos se disparan SOLO al
+  // cruzar hacia abajo (seg < anterior), así un +30s o un reset no los
+  // dispara y cada hito puede volver a sonar si el reloj vuelve a subir.
+  const lastSegRef = useRef<number>(Math.ceil(inicial.reloj_restante_ms / 1000));
 
   async function alternarSonido() {
     if (sonidoOn) {
@@ -400,22 +604,40 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         (payload) => setM(payload.new as Marcador),
       )
       .subscribe();
+    // Mismo canal para recibir (proyector) y emitir (dock del admin). Los
+    // broadcast de Supabase no vuelven al emisor: el dock aplica su propio
+    // evento en local.
     const chFast = supabase
       .channel(canalFast(inicial.id))
       .on('broadcast', { event: 'ev' }, ({ payload }) => {
         setM((prev) => aplicarEventoFast(prev, payload as EventoFast));
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fastRef.current = chFast;
+      });
     return () => {
+      fastRef.current = null;
       supabase.removeChannel(chDb);
       supabase.removeChannel(chFast);
     };
   }, [inicial.id]);
 
+  // Emite el evento predicho al canal fast y lo aplica en local antes de que
+  // vuelva el Server Action (mismo patrón que el panel de control).
+  const fast: FastFn = (accion, evOrFn) => {
+    return ((fd: FormData) => {
+      const ev = typeof evOrFn === 'function' ? evOrFn() : evOrFn;
+      setM((prev) => aplicarEventoFast(prev, ev));
+      fastRef.current?.send({ type: 'broadcast', event: 'ev', payload: ev });
+      return accion(fd);
+    }) as typeof accion;
+  };
+
   // Tick local con requestAnimationFrame para reloj y shot. También dispara
   // sonidos automáticos: beep cada segundo del shot del 5 al 1, chicharra
   // corta al expirar el shot, chicharra larga al expirar el reloj.
   useEffect(() => {
+    const cfg = configAvisos(m);
     function tick() {
       const nuevoReloj = msRestantes(
         m.reloj_restante_ms,
@@ -445,23 +667,23 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         lastShotSecRef.current = Math.ceil(nuevoShot / 1000);
       }
 
-      // Cronómetro: reset del último anuncio si el reloj subió (reset o +30s
-      // del admin). Sin esto, después de un +30s no volvería a anunciar
-      // "un minuto" cuando cruzáramos ese umbral otra vez.
-      if (m.es_cronometro && nuevoReloj > lastAnuncioRef.current) {
-        lastAnuncioRef.current = Number.POSITIVE_INFINITY;
-      }
-      // Cronómetro: anuncios de voz en los thresholds (una sola vez cada uno).
-      // Solo aplica cuando el reloj está corriendo (no queremos que anuncie
-      // al retroceder el tiempo por un ajuste manual del admin).
-      if (sonidoOn && m.es_cronometro && m.reloj_corriendo) {
-        for (const th of ANUNCIOS_TOPES) {
-          if (nuevoReloj <= th.ms && lastAnuncioRef.current > th.ms) {
-            anunciarVoz(th.texto);
-            lastAnuncioRef.current = th.ms;
-            break;
+      // Cronómetro: avisos configurables (SQL 36) por cruce de segundo.
+      //   - hitos de voz (3 min, 1 min, 30 s...) repetidos N veces
+      //   - beep por segundo desde `beepDesde` hasta 1 (últimos 5 más agudos)
+      //   - cuenta hablada opcional de los últimos N segundos
+      if (m.es_cronometro) {
+        const seg = Math.ceil(nuevoReloj / 1000);
+        if (seg < lastSegRef.current && sonidoOn && m.reloj_corriendo) {
+          if (cfg.avisos.includes(seg)) {
+            anunciarVoz(textoAviso(seg), { veces: cfg.repetir });
+          } else if (seg >= 1 && seg <= cfg.cuentaVozDesde) {
+            anunciarVoz(numeroEnPalabras(seg));
+          }
+          if (seg >= 1 && seg <= cfg.beepDesde) {
+            tocarBeep(seg <= 5 ? 0.35 : 0.25, seg <= 5 ? 1400 : 1000);
           }
         }
+        lastSegRef.current = seg;
       }
 
       // Bocina larga al expirar el reloj de juego (solo si estaba corriendo).
@@ -528,6 +750,9 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
 
   // Modo cronómetro: layout completamente distinto (solo reloj gigante).
   if (m.es_cronometro) {
+    // El dock abierto ocupa la franja inferior: el reloj se achica para no
+    // quedar tapado (en proyección el dock va cerrado y ocupa todo).
+    const dockConEspacio = puedeControlar && dockAbierto;
     // formato MM:SS o M:SS.MMM cuando queda poco (últimos 10s: mostramos décimas).
     const bajos = relojMs < 10_000;
     const totalSeg = Math.max(0, Math.ceil(relojMs / 1000));
@@ -550,7 +775,22 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
         }}
       >
         {/* Botones flotantes */}
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 opacity-30 hover:opacity-100 transition">
+        <div className="absolute right-3 top-3 z-40 flex items-center gap-2 opacity-40 hover:opacity-100 focus-within:opacity-100 transition">
+          {puedeControlar && (
+            <button
+              type="button"
+              onClick={() => setDockAbierto((v) => !v)}
+              aria-label={dockAbierto ? 'Ocultar controles' : 'Mostrar controles'}
+              className={`inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-bold ring-1 transition ${
+                dockAbierto
+                  ? 'bg-orange-600/30 ring-orange-400/50 text-orange-100'
+                  : 'bg-white/5 ring-white/15 text-zinc-300'
+              }`}
+              title="Controlar el cronómetro desde esta pantalla"
+            >
+              🎛 <span className="hidden sm:inline">Controles</span>
+            </button>
+          )}
           {sonidoOn && <SelectorVoz />}
           <button
             type="button"
@@ -578,7 +818,10 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
           </button>
         </div>
 
-        <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center">
+        <div
+          className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center transition-[padding] duration-200"
+          style={{ paddingBottom: dockConEspacio ? 'clamp(9rem, 24vh, 15rem)' : undefined }}
+        >
           {m.titulo && (
             <p
               className="uppercase tracking-[0.35em] font-semibold text-zinc-300 truncate mb-4"
@@ -595,8 +838,8 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
               // Reloj gigante — se llena en vw pero limitado por vh. En cuenta
               // detallada (10s) el número es más corto: crece más grande.
               fontSize: bajos
-                ? 'clamp(10rem, min(80vh, 55vw), 140rem)'
-                : 'clamp(6rem, min(70vh, 32vw), 120rem)',
+                ? `clamp(6rem, min(${dockConEspacio ? 52 : 80}vh, 55vw), 140rem)`
+                : `clamp(4rem, min(${dockConEspacio ? 45 : 70}vh, 32vw), 120rem)`,
               color: bajos ? '#ef4444' : colorPtsGlobal,
               textShadow: m.neon
                 ? `0 0 12px ${bajos ? '#ef4444' : colorPtsGlobal}, 0 0 40px ${bajos ? '#ef4444' : colorPtsGlobal}, 0 0 90px ${bajos ? '#ef4444' : colorPtsGlobal}`
@@ -609,6 +852,16 @@ export function VisorMarcador({ inicial }: { inicial: Marcador }) {
             {textoReloj}
           </p>
         </div>
+
+        {/* Dock de control (solo admin) — misma vista, pensado para móvil. */}
+        {puedeControlar && (
+          <DockCronometro
+            m={m}
+            fast={fast}
+            abierto={dockAbierto}
+            onCerrar={() => setDockAbierto(false)}
+          />
+        )}
       </div>
     );
   }

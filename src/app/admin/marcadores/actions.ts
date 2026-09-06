@@ -29,6 +29,16 @@ export async function crearMarcador(
     const seg = Math.max(0, Math.min(59, parseInt((formData.get('crono_seg') as string) || '0', 10)));
     const totalSeg = Math.max(1, min * 60 + seg);
     const titulo = ((formData.get('titulo_cronometro') as string) || '').trim() || null;
+    // Avisos (SQL 36): hitos marcados + repeticiones + beep inicial.
+    const avisos_seg = formData
+      .getAll('avisos_seg')
+      .map((v) => parseInt(String(v), 10))
+      .filter((n) => Number.isFinite(n) && n > 0 && n <= 3600)
+      .sort((a, b) => b - a);
+    const avisos_repetir = Math.min(3, Math.max(1,
+      parseInt((formData.get('avisos_repetir') as string) || '2', 10) || 2));
+    const beep_desde_seg = Math.min(60, Math.max(0,
+      parseInt((formData.get('beep_desde_seg') as string) || '15', 10) || 0));
     baseInsert = {
       slug: nuevoSlug(),
       nombre_local: 'LOCAL',
@@ -42,6 +52,10 @@ export async function crearMarcador(
       tiene_periodo: false,
       es_cronometro: true,
       titulo,
+      avisos_seg,
+      avisos_repetir,
+      beep_desde_seg,
+      voz_cuenta_desde: 0,
       expira_en: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
       creado_por: perfil.id,
     };
@@ -78,15 +92,21 @@ export async function crearMarcador(
     .insert(baseInsert)
     .select('id')
     .single();
-  // Fallbacks si SQL 22/29/32/35 aún no corrieron: reintenta sin los campos
-  // que la DB no reconoce.
-  const REG_OPCIONALES = /tiene_(reloj_periodo|shot_clock|periodo)|es_cronometro|titulo/;
-  if (error && REG_OPCIONALES.test(error.message)) {
-    const sinOpcionales = { ...baseInsert };
-    for (const k of ['tiene_reloj_periodo', 'tiene_shot_clock', 'tiene_periodo', 'es_cronometro', 'titulo']) {
-      delete (sinOpcionales as Record<string, unknown>)[k];
-    }
-    const r = await supabase.from('marcadores').insert(sinOpcionales).select('id').single();
+  // Fallbacks si SQL 22/29/32/35/36 aún no corrieron: reintenta soltando un
+  // grupo de columnas por vez, del más nuevo al más viejo, para no perder el
+  // modo cronómetro solo porque falta la migración de los avisos.
+  const REG_OPCIONALES =
+    /tiene_(reloj_periodo|shot_clock|periodo)|es_cronometro|titulo|avisos_(seg|repetir)|beep_desde_seg|voz_cuenta_desde/;
+  const GRUPOS_OPCIONALES: string[][] = [
+    ['avisos_seg', 'avisos_repetir', 'beep_desde_seg', 'voz_cuenta_desde'], // SQL 36
+    ['es_cronometro', 'titulo'],                                            // SQL 35 / 32
+    ['tiene_reloj_periodo', 'tiene_shot_clock', 'tiene_periodo'],           // SQL 22 / 29
+  ];
+  const intento: Record<string, unknown> = { ...baseInsert };
+  for (const grupo of GRUPOS_OPCIONALES) {
+    if (!error || !REG_OPCIONALES.test(error.message)) break;
+    for (const k of grupo) delete intento[k];
+    const r = await supabase.from('marcadores').insert(intento).select('id').single();
     data = r.data;
     error = r.error;
   }
