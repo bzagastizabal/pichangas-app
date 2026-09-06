@@ -350,6 +350,9 @@ export type Marcador = {
   voz_cuenta_desde: number | null;
   // Pack de voz elegido (SQL 37). null = voz sintetizada del sistema.
   voz_paquete_id: string | null;
+  // Revisión monotónica (SQL 38): la incrementa un trigger en cada UPDATE.
+  // El cliente descarta payloads de Realtime con rev menor al que ya aplicó.
+  rev: number | null;
   expira_en: string;
   creado_por: string;
   created_at: string;

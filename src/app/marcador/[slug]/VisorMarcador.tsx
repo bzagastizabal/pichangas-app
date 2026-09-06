@@ -19,12 +19,10 @@ import { AvisosCronometro } from '@/components/AvisosCronometro';
 import { useMantenerPantalla } from '@/lib/wake-lock';
 import { BotonPantalla } from '@/components/BotonPantalla';
 import {
-  ajustarCronometro,
   fijarTotalCronometro,
-  resetReloj,
   sonarBocina,
-  togglePlay,
 } from '@/app/admin/marcadores/[id]/control/actions';
+import { accionReloj, masNuevo, type AccionReloj } from '@/lib/marcador-acciones';
 import {
   anunciarVoz,
   audioDesbloqueado,
@@ -157,11 +155,17 @@ const evAjuste = (d: number): EventoFast => ({ t: 'ajuste', d, nowMs: Date.now()
 function DockCronometro({
   m,
   fast,
+  ejecutar,
+  pendiente,
   abierto,
   onCerrar,
 }: {
   m: Marcador;
   fast: FastFn;
+  // Acciones del reloj: van directo a la RPC atómica (SQL 38), sin Server
+  // Action, para que el toque no espere el ida-y-vuelta a Next.
+  ejecutar: (accion: AccionReloj, deltaSeg?: number) => void;
+  pendiente: boolean;
   abierto: boolean;
   onCerrar: () => void;
 }) {
@@ -225,56 +229,43 @@ function DockCronometro({
       <div className="w-full max-w-2xl rounded-2xl bg-black/70 backdrop-blur ring-1 ring-white/15 p-2 shadow-2xl">
         <div className="flex items-center justify-center gap-2">
           {[-30, -10].map((d) => (
-            <form
-              key={d}
-              action={fast(ajustarCronometro, () => evAjuste(d))}
-            >
-              <input type="hidden" name="id" value={m.id} />
-              <input type="hidden" name="delta" value={d} />
-              <BotonDock tono="rojo">{d}s</BotonDock>
-            </form>
+            <BotonDock key={d} tono="rojo" onClick={() => ejecutar('ajuste', d)}>
+              {d}s
+            </BotonDock>
           ))}
 
-          <form action={fast(togglePlay, evPlay)}>
-            <input type="hidden" name="id" value={m.id} />
-            <button
-              type="submit"
-              aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
-              className={`inline-flex h-16 w-16 items-center justify-center rounded-full text-white ring-2 ring-white/25 shadow-lg transition active:scale-[0.95] ${
-                m.reloj_corriendo ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'
-              }`}
-            >
-              {m.reloj_corriendo ? (
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
-                  <rect x="6" y="5" width="4" height="14" rx="1" />
-                  <rect x="14" y="5" width="4" height="14" rx="1" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
-                  <path d="M8 5l11 7-11 7V5z" />
-                </svg>
-              )}
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={() => ejecutar('play')}
+            aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+            className={`inline-flex h-16 w-16 items-center justify-center rounded-full text-white ring-2 ring-white/25 shadow-lg transition active:scale-[0.95] ${
+              m.reloj_corriendo ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'
+            } ${pendiente ? 'opacity-80' : ''}`}
+          >
+            {m.reloj_corriendo ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
+                <rect x="6" y="5" width="4" height="14" rx="1" />
+                <rect x="14" y="5" width="4" height="14" rx="1" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
+                <path d="M8 5l11 7-11 7V5z" />
+              </svg>
+            )}
+          </button>
 
           {[10, 30].map((d) => (
-            <form
-              key={d}
-              action={fast(ajustarCronometro, () => evAjuste(d))}
-            >
-              <input type="hidden" name="id" value={m.id} />
-              <input type="hidden" name="delta" value={d} />
-              <BotonDock tono="verde">+{d}s</BotonDock>
-            </form>
+            <BotonDock key={d} tono="verde" onClick={() => ejecutar('ajuste', d)}>
+              +{d}s
+            </BotonDock>
           ))}
         </div>
 
         {/* Fila secundaria: reset, bocina, paneles, ocultar */}
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-          <form action={fast(resetReloj, { t: 'rReloj' })}>
-            <input type="hidden" name="id" value={m.id} />
-            <BotonDock tono="neutro" pequeno>↻ Reset</BotonDock>
-          </form>
+          <BotonDock tono="neutro" pequeno onClick={() => ejecutar('reset')}>
+            ↻ Reset
+          </BotonDock>
           <form action={fast(sonarBocina, { t: 'bocina' })}>
             <input type="hidden" name="id" value={m.id} />
             <BotonDock tono="neutro" pequeno>📣 Bocina</BotonDock>
@@ -318,10 +309,13 @@ function BotonDock({
   children,
   tono = 'neutro',
   pequeno = false,
+  onClick,
 }: {
   children: React.ReactNode;
   tono?: 'neutro' | 'verde' | 'rojo';
   pequeno?: boolean;
+  // Sin onClick es el submit del <form> que lo envuelve (bocina).
+  onClick?: () => void;
 }) {
   const tonos = {
     neutro: 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80',
@@ -331,7 +325,8 @@ function BotonDock({
   const tam = pequeno ? 'h-10 px-3 text-xs' : 'h-14 px-4 text-base';
   return (
     <button
-      type="submit"
+      type={onClick ? 'button' : 'submit'}
+      onClick={onClick}
       className={`inline-flex items-center justify-center rounded-xl font-bold ring-1 transition active:scale-[0.97] ${tonos} ${tam}`}
     >
       {children}
@@ -614,7 +609,12 @@ export function VisorMarcador({
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'marcadores', filter: `id=eq.${inicial.id}` },
-        (payload) => setM(payload.new as Marcador),
+        // Descarta payloads atrasados: `rev` sube en cada UPDATE (SQL 38).
+        (payload) =>
+          setM((prev) => {
+            const nuevo = payload.new as Marcador;
+            return masNuevo(prev, nuevo) ? nuevo : prev;
+          }),
       )
       .subscribe();
     // Mismo canal para recibir (proyector) y emitir (dock del admin). Los
@@ -668,6 +668,25 @@ export function VisorMarcador({
     }
     corriendoAntesRef.current = m.reloj_corriendo;
   }, [m.reloj_corriendo, sonidoOn]);
+
+  // Reloj: optimista + broadcast al proyector + RPC atómica. La fila que
+  // devuelve la RPC es la verdad y trae `rev`, así que reconcilia sin esperar
+  // al postgres_changes.
+  const [pendienteReloj, setPendienteReloj] = useState(false);
+  async function ejecutarReloj(accion: AccionReloj, deltaSeg = 0) {
+    const ev: EventoFast =
+      accion === 'play'
+        ? evPlay()
+        : accion === 'reset'
+          ? { t: 'rReloj' }
+          : evAjuste(deltaSeg);
+    setM((prev) => aplicarEventoFast(prev, ev));
+    fastRef.current?.send({ type: 'broadcast', event: 'ev', payload: ev });
+    setPendienteReloj(true);
+    const fila = await accionReloj(inicial.id, accion, deltaSeg);
+    setPendienteReloj(false);
+    if (fila) setM((prev) => (masNuevo(prev, fila) ? fila : prev));
+  }
 
   // Emite el evento predicho al canal fast y lo aplica en local antes de que
   // vuelva el Server Action (mismo patrón que el panel de control).
@@ -915,6 +934,8 @@ export function VisorMarcador({
           <DockCronometro
             m={m}
             fast={fast}
+            ejecutar={(accion, delta) => void ejecutarReloj(accion, delta)}
+            pendiente={pendienteReloj}
             abierto={dockAbierto}
             onCerrar={() => setDockAbierto(false)}
           />

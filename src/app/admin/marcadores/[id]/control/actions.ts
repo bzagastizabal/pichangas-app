@@ -65,81 +65,84 @@ export async function cambiarTimeouts(formData: FormData): Promise<void> {
   await supabase.from('marcadores').update({ [col]: valor }).eq('id', id);
 }
 
-// Play/Pause sincroniza reloj principal Y shot clock.
-export async function togglePlay(formData: FormData): Promise<void> {
-  await requireAdmin();
-  const id = formData.get('id') as string;
+// Reloj: play/pausa, reset y ±segundos van por la RPC atómica de SQL 38
+// (SELECT ... FOR UPDATE dentro de una transacción). Antes cada acción hacía
+// SELECT y luego UPDATE desde aquí: dos toques seguidos leían la fila vieja y
+// el estado final quedaba mezclado (reset + play terminaba pausado en el
+// tiempo anterior). Estos Server Actions quedan como respaldo sin JS; el UI
+// llama a la misma RPC directo desde el navegador (lib/marcador-acciones).
+async function rpcReloj(id: string, accion: 'play' | 'reset' | 'ajuste', delta = 0) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('marcador_reloj', {
+    p_id: id,
+    p_accion: accion,
+    p_delta: delta,
+  });
+  if (!error) return;
+  // SQL 38 todavía no corrió: camino anterior (lee y escribe, no atómico).
   const m = await leer(id);
   if (!m) return;
   const ahora = new Date().toISOString();
-  const supabase = await createClient();
-  if (m.reloj_corriendo) {
-    // Pausar: congela los ms reales restantes ahora.
-    const relojMs = msRestantes(m.reloj_restante_ms, true, m.reloj_inicio);
-    const shotMs = msRestantes(m.shot_restante_ms, m.shot_corriendo, m.shot_inicio);
+  const relojMs = msRestantes(m.reloj_restante_ms, m.reloj_corriendo, m.reloj_inicio);
+  const shotMs = msRestantes(m.shot_restante_ms, m.shot_corriendo, m.shot_inicio);
+  if (accion === 'play') {
+    await supabase
+      .from('marcadores')
+      .update(
+        m.reloj_corriendo
+          ? {
+              reloj_restante_ms: relojMs, reloj_corriendo: false, reloj_inicio: null,
+              shot_restante_ms: shotMs,   shot_corriendo: false,  shot_inicio: null,
+            }
+          : {
+              reloj_corriendo: true, reloj_inicio: ahora,
+              shot_corriendo: true,  shot_inicio: ahora,
+            },
+      )
+      .eq('id', id);
+  } else if (accion === 'reset') {
     await supabase
       .from('marcadores')
       .update({
-        reloj_restante_ms: relojMs,
+        reloj_restante_ms: m.duracion_periodo_seg * 1000,
         reloj_corriendo: false,
         reloj_inicio: null,
-        shot_restante_ms: shotMs,
-        shot_corriendo: false,
-        shot_inicio: null,
       })
       .eq('id', id);
   } else {
-    // Reanudar.
     await supabase
       .from('marcadores')
       .update({
-        reloj_corriendo: true,
-        reloj_inicio: ahora,
-        shot_corriendo: true,
-        shot_inicio: ahora,
+        reloj_restante_ms: Math.max(0, relojMs + delta * 1000),
+        ...(m.reloj_corriendo ? { reloj_inicio: ahora } : {}),
       })
       .eq('id', id);
   }
 }
 
-// Suma/resta segundos al reloj — útil para el modo cronómetro. Si está
-// corriendo, congela → aplica delta → vuelve a arrancar para no perder ms
-// residuales por el tick del RAF.
+// Play/Pause sincroniza reloj principal Y shot clock.
+export async function togglePlay(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  await rpcReloj(id, 'play');
+}
+
+// Suma/resta segundos al reloj — útil para el modo cronómetro.
 export async function ajustarCronometro(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = formData.get('id') as string;
   const delta = parseInt((formData.get('delta') as string) || '0', 10);
   if (!id || !delta) return;
-  const m = await leer(id);
-  if (!m) return;
-  const supabase = await createClient();
-  const restanteReal = msRestantes(m.reloj_restante_ms, m.reloj_corriendo, m.reloj_inicio);
-  const nuevo = Math.max(0, restanteReal + delta * 1000);
-  const upd: Record<string, unknown> = {
-    reloj_restante_ms: nuevo,
-  };
-  if (m.reloj_corriendo) {
-    // Rearrancamos desde el nuevo valor.
-    upd.reloj_inicio = new Date().toISOString();
-  }
-  await supabase.from('marcadores').update(upd).eq('id', id);
+  await rpcReloj(id, 'ajuste', delta);
 }
 
 // Resetea el reloj principal al inicio del periodo (sin tocar puntos).
 export async function resetReloj(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = formData.get('id') as string;
-  const m = await leer(id);
-  if (!m) return;
-  const supabase = await createClient();
-  await supabase
-    .from('marcadores')
-    .update({
-      reloj_restante_ms: m.duracion_periodo_seg * 1000,
-      reloj_corriendo: false,
-      reloj_inicio: null,
-    })
-    .eq('id', id);
+  if (!id) return;
+  await rpcReloj(id, 'reset');
 }
 
 export async function resetShot(formData: FormData): Promise<void> {

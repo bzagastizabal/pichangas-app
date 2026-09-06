@@ -217,6 +217,15 @@ decide si la pichanga se realiza o se cancela.)
     en AudioBuffers (`cargarPaqueteVoz`/`reproducirClip`) para que suenen con la misma latencia
     que el beep y compartan el desbloqueo del AudioContext; si falta un clip, ese aviso cae a
     la voz sintetizada. El clip `fin` reemplaza a la bocina cuando existe.
+  - **SQL 38 — reloj atómico + `rev`**: RPC `marcador_reloj(p_id, p_accion, p_delta)` con
+    `SELECT ... FOR UPDATE` resuelve play/reset/ajuste en una transacción y devuelve la fila.
+    Antes cada acción hacía SELECT y luego UPDATE desde el Server Action: dos toques seguidos
+    leían la fila vieja (reset + play terminaba pausado en el tiempo anterior). Además un
+    trigger sube `rev` en cada UPDATE y los clientes descartan payloads de Realtime con `rev`
+    menor (`masNuevo()` en lib/marcador-acciones), así un UPDATE lento ya no pisa el estado
+    nuevo. Los botones del reloj (visor y control) llaman la RPC DIRECTO desde el navegador
+    (una llamada a Supabase, sin salto a Next ni refresh del RSC); los Server Actions quedan
+    de respaldo y ambos caen al camino viejo si la migración no corrió.
   - Pendiente: integraciones de proyección al TV (QR del visor en el control, modo overlay
     transparente para OBS, manifest PWA para Android TV).
 

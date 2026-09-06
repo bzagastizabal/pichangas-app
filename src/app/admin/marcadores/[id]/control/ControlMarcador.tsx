@@ -35,20 +35,18 @@ const BOCINAS: Array<{
 ];
 import { AvisosCronometro } from '@/components/AvisosCronometro';
 import { BotonPantalla } from '@/components/BotonPantalla';
+import { accionReloj, masNuevo, type AccionReloj } from '@/lib/marcador-acciones';
 import { useMantenerPantalla } from '@/lib/wake-lock';
 import {
   actualizarEstilo,
-  ajustarCronometro,
   cambiarFaltas,
   cambiarPeriodo,
   cambiarPuntos,
   cambiarTimeouts,
   reiniciarPartido,
   renombrarEquipos,
-  resetReloj,
   resetShot,
   sonarBocina,
-  togglePlay,
 } from './actions';
 
 // Sub-form del estilo: fuente + colores. Radio controlado con useState para
@@ -331,18 +329,22 @@ function Boton({
   alto = 'normal',
   ancho = 'auto',
   className = '',
+  onClick,
 }: {
   children: React.ReactNode;
   tono?: Tono;
   alto?: 'normal' | 'alto';
   ancho?: 'auto' | 'full';
   className?: string;
+  // Sin onClick es el submit del <form> que lo envuelve.
+  onClick?: () => void;
 }) {
   const h = alto === 'alto' ? 'h-14 sm:h-16 text-lg sm:text-xl' : 'h-11 sm:h-12 text-sm sm:text-base';
   const w = ancho === 'full' ? 'w-full' : '';
   return (
     <button
-      type="submit"
+      type={onClick ? 'button' : 'submit'}
+      onClick={onClick}
       className={`inline-flex items-center justify-center rounded-xl font-bold tracking-wide transition active:scale-[0.97] disabled:opacity-50 ${TONOS[tono]} ${h} ${w} ${className}`}
     >
       {children}
@@ -509,7 +511,12 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'marcadores', filter: `id=eq.${inicial.id}` },
-        (payload) => setM(payload.new as Marcador),
+        // Descarta payloads atrasados: `rev` sube en cada UPDATE (SQL 38).
+        (payload) =>
+          setM((prev) => {
+            const nuevo = payload.new as Marcador;
+            return masNuevo(prev, nuevo) ? nuevo : prev;
+          }),
       )
       .subscribe();
     const chFast = supabase
@@ -523,6 +530,21 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
       supabase.removeChannel(chFast);
     };
   }, [inicial.id]);
+
+  // Reloj: optimista + broadcast + RPC atómica (SQL 38). Va directo desde el
+  // navegador; el Server Action queda de respaldo sin JS.
+  async function ejecutarReloj(accion: AccionReloj, deltaSeg = 0) {
+    const ev: EventoFast =
+      accion === 'play'
+        ? { t: 'play', nowMs: Date.now() }
+        : accion === 'reset'
+          ? { t: 'rReloj' }
+          : { t: 'ajuste', d: deltaSeg, nowMs: Date.now() };
+    setM((prev) => aplicarEventoFast(prev, ev));
+    fastRef.current?.send({ type: 'broadcast', event: 'ev', payload: ev });
+    const fila = await accionReloj(inicial.id, accion, deltaSeg);
+    if (fila) setM((prev) => (masNuevo(prev, fila) ? fila : prev));
+  }
 
   const fast: FastFn = (accion, evOrFn) => {
     return ((fd: FormData) => {
@@ -615,22 +637,19 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
 
         {/* Play grande + reset */}
         <div className="flex flex-col items-center gap-3">
-          <FormBtn action={fast(togglePlay, () => ({ t: 'play', nowMs: Date.now() }))}>
-            <HiddenId id={m.id} />
-            <button
-              type="submit"
-              className={`relative inline-flex h-24 w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
-                m.reloj_corriendo ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'
-              }`}
-              aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
-            >
-              <IconoPlay pausa={m.reloj_corriendo} />
-            </button>
-          </FormBtn>
-          <FormBtn action={fast(resetReloj, { t: 'rReloj' })}>
-            <HiddenId id={m.id} />
-            <Boton tono="neutro">↻ Reset al total</Boton>
-          </FormBtn>
+          <button
+            type="button"
+            onClick={() => void ejecutarReloj('play')}
+            className={`relative inline-flex h-24 w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
+              m.reloj_corriendo ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'
+            }`}
+            aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+          >
+            <IconoPlay pausa={m.reloj_corriendo} />
+          </button>
+          <Boton tono="neutro" onClick={() => void ejecutarReloj('reset')}>
+            ↻ Reset al total
+          </Boton>
         </div>
 
         {/* Ajustes rápidos ±30/±10/±5 segundos */}
@@ -638,13 +657,14 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
           <p className="text-xs uppercase tracking-widest text-tenue">Ajuste rápido</p>
           <div className="grid grid-cols-3 gap-2">
             {[-30, -10, -5, 5, 10, 30].map((d) => (
-              <FormBtn key={d} action={ajustarCronometro}>
-                <HiddenId id={m.id} />
-                <input type="hidden" name="delta" value={d} />
-                <Boton tono={d < 0 ? 'rojo' : 'primario'} ancho="full">
-                  {d > 0 ? `+${d}s` : `${d}s`}
-                </Boton>
-              </FormBtn>
+              <Boton
+                key={d}
+                tono={d < 0 ? 'rojo' : 'primario'}
+                ancho="full"
+                onClick={() => void ejecutarReloj('ajuste', d)}
+              >
+                {d > 0 ? `+${d}s` : `${d}s`}
+              </Boton>
             ))}
           </div>
         </div>
@@ -765,10 +785,9 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
                 {formatearReloj(relojMs)}
               </p>
               <div className="mt-2 flex justify-center lg:justify-start gap-2">
-                <FormBtn action={fast(resetReloj, { t: 'rReloj' })}>
-                  <HiddenId id={m.id} />
-                  <Boton tono="neutro">↻ Reset reloj</Boton>
-                </FormBtn>
+                <Boton tono="neutro" onClick={() => void ejecutarReloj('reset')}>
+                  ↻ Reset reloj
+                </Boton>
               </div>
             </div>
           )}
@@ -776,20 +795,18 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
           {/* Play + Periodo. Play solo si hay algún cronómetro. */}
           <div className="flex flex-col items-center gap-3">
             {(conReloj || conShot) && (
-              <FormBtn action={fast(togglePlay, () => ({ t: 'play', nowMs: Date.now() }))}>
-                <HiddenId id={m.id} />
-                <button
-                  type="submit"
-                  className={`relative inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
-                    m.reloj_corriendo
-                      ? 'bg-red-600 hover:bg-red-500'
-                      : 'bg-green-600 hover:bg-green-500'
-                  }`}
-                  aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
-                >
-                  <IconoPlay pausa={m.reloj_corriendo} />
-                </button>
-              </FormBtn>
+              <button
+                type="button"
+                onClick={() => void ejecutarReloj('play')}
+                className={`relative inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full text-white font-bold transition active:scale-[0.96] ring-2 ring-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${
+                  m.reloj_corriendo
+                    ? 'bg-red-600 hover:bg-red-500'
+                    : 'bg-green-600 hover:bg-green-500'
+                }`}
+                aria-label={m.reloj_corriendo ? 'Pausar' : 'Iniciar'}
+              >
+                <IconoPlay pausa={m.reloj_corriendo} />
+              </button>
             )}
             {conPeriodo && (
               <div className="flex items-center gap-2">
