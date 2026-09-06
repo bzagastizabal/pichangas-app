@@ -16,6 +16,8 @@ import {
   textoAviso,
 } from '@/lib/cronometro-avisos';
 import { AvisosCronometro } from '@/components/AvisosCronometro';
+import { useMantenerPantalla } from '@/lib/wake-lock';
+import { BotonPantalla } from '@/components/BotonPantalla';
 import {
   ajustarCronometro,
   fijarTotalCronometro,
@@ -564,6 +566,8 @@ export function VisorMarcador({
   const [shotMs, setShotMs] = useState(inicial.shot_restante_ms);
   const [sonidoOn, setSonidoOn] = useState(false);
   const [dockAbierto, setDockAbierto] = useState(puedeControlar);
+  // Wake Lock encendido por defecto: el visor casi siempre está proyectando.
+  const [pantallaOn, setPantallaOn] = useState(true);
   const rafRef = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const fastRef = useRef<RealtimeChannel | null>(null);
@@ -575,6 +579,9 @@ export function VisorMarcador({
   // cruzar hacia abajo (seg < anterior), así un +30s o un reset no los
   // dispara y cada hito puede volver a sonar si el reloj vuelve a subir.
   const lastSegRef = useRef<number>(Math.ceil(inicial.reloj_restante_ms / 1000));
+
+  const { estado: estadoPantalla, reintentar: reintentarPantalla } =
+    useMantenerPantalla(pantallaOn);
 
   async function alternarSonido() {
     if (sonidoOn) {
@@ -792,6 +799,12 @@ export function VisorMarcador({
             </button>
           )}
           {sonidoOn && <SelectorVoz />}
+          <BotonPantalla
+            estado={estadoPantalla}
+            activo={pantallaOn}
+            onToggle={() => setPantallaOn((v) => !v)}
+            onReintentar={reintentarPantalla}
+          />
           <button
             type="button"
             onClick={alternarSonido}
@@ -909,6 +922,12 @@ export function VisorMarcador({
       {/* Botones flotantes (siempre disponibles, también en mega): sonido + fullscreen. */}
       {modoMega && (
         <div className="absolute right-3 top-3 z-20 flex items-center gap-2 opacity-30 hover:opacity-100 transition">
+          <BotonPantalla
+            estado={estadoPantalla}
+            activo={pantallaOn}
+            onToggle={() => setPantallaOn((v) => !v)}
+            onReintentar={reintentarPantalla}
+          />
           <button
             type="button"
             onClick={alternarSonido}
@@ -1019,6 +1038,14 @@ export function VisorMarcador({
               </span>
               {m.reloj_corriendo ? 'LIVE' : 'PAUSA'}
             </span>
+
+            <BotonPantalla
+              estado={estadoPantalla}
+              activo={pantallaOn}
+              onToggle={() => setPantallaOn((v) => !v)}
+              onReintentar={reintentarPantalla}
+              tam="grande"
+            />
 
             <button
               type="button"

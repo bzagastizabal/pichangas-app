@@ -34,6 +34,8 @@ const BOCINAS: Array<{
   { key: 'air_horn',    emoji: '📢', label: 'Air horn',    hint: 'Festivalero, aguda y brillante' },
 ];
 import { AvisosCronometro } from '@/components/AvisosCronometro';
+import { BotonPantalla } from '@/components/BotonPantalla';
+import { useMantenerPantalla } from '@/lib/wake-lock';
 import {
   actualizarEstilo,
   ajustarCronometro,
@@ -493,6 +495,11 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
   const [shotMs, setShotMs] = useState(inicial.shot_restante_ms);
   const rafRef = useRef<number | null>(null);
   const fastRef = useRef<RealtimeChannel | null>(null);
+  // El operador tiene el móvil en la mano toda la pichanga: la pantalla no
+  // debe apagarse mientras controla.
+  const [pantallaOn, setPantallaOn] = useState(true);
+  const { estado: estadoPantalla, reintentar: reintentarPantalla } =
+    useMantenerPantalla(pantallaOn);
 
   // Realtime — postgres_changes para reconciliar + broadcast fast-lane (~30-80 ms).
   useEffect(() => {
@@ -569,15 +576,23 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
             </p>
             {m.titulo && <p className="text-xs text-tenue truncate max-w-[24ch]">{m.titulo}</p>}
           </div>
-          <span
-            className={`ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ring-1 ${
-              m.reloj_corriendo
-                ? 'bg-red-500/15 ring-red-500/40 text-red-200'
-                : 'bg-white/5 ring-white/15 text-zinc-300'
-            }`}
-          >
-            {m.reloj_corriendo ? 'LIVE' : 'PAUSA'}
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <BotonPantalla
+              estado={estadoPantalla}
+              activo={pantallaOn}
+              onToggle={() => setPantallaOn((v) => !v)}
+              onReintentar={reintentarPantalla}
+            />
+            <span
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ring-1 ${
+                m.reloj_corriendo
+                  ? 'bg-red-500/15 ring-red-500/40 text-red-200'
+                  : 'bg-white/5 ring-white/15 text-zinc-300'
+              }`}
+            >
+              {m.reloj_corriendo ? 'LIVE' : 'PAUSA'}
+            </span>
+          </div>
         </div>
 
         {/* Display grande */}
@@ -698,8 +713,15 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
           </p>
           <p className="text-xs text-tenue uppercase tracking-widest">Panel de control</p>
         </div>
+        <div className="ml-auto" />
+        <BotonPantalla
+          estado={estadoPantalla}
+          activo={pantallaOn}
+          onToggle={() => setPantallaOn((v) => !v)}
+          onReintentar={reintentarPantalla}
+        />
         <span
-          className={`ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ring-1 ${
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ring-1 ${
             m.reloj_corriendo
               ? 'bg-red-500/15 ring-red-500/40 text-red-200'
               : 'bg-white/5 ring-white/15 text-zinc-300'

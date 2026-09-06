@@ -204,8 +204,13 @@ decide si la pichanga se realiza o se cancela.)
     y tiempo total, pensado para operar desde el móvil sin abrir el panel aparte. El dock emite
     por el canal fast (`EventoFast.ajuste` nuevo) para que el proyector vea el cambio en ~50 ms.
     El panel `/admin/marcadores/[id]/control` sigue existiendo (desktop) y linkea al visor.
-  - Pendiente: integraciones de proyección al TV (Wake Lock para evitar sleep, QR del visor en
-    el control, modo overlay transparente para OBS, manifest PWA para Android TV).
+  - **Wake Lock (pantalla siempre encendida)**: `lib/wake-lock.ts` (`useMantenerPantalla`) +
+    `<BotonPantalla/>` (💡 activo / 🌙 apagado / 🌙 rojo pulsante = falta gesto del usuario).
+    Encendido por defecto en el visor y en el panel de control; re-pide el lock en cada
+    `visibilitychange` (el navegador lo suelta al cambiar de pestaña). El soporte se detecta con
+    `useSyncExternalStore` (getServerSnapshot=false) para no romper la hidratación.
+  - Pendiente: integraciones de proyección al TV (QR del visor en el control, modo overlay
+    transparente para OBS, manifest PWA para Android TV), voces de personajes para los avisos.
 
 ## Convenciones
 - Código y UI en español. Variables/tablas en español (ya establecido en el esquema).
