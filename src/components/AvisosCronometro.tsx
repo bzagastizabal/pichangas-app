@@ -4,8 +4,10 @@
 // cuando llega un UPDATE por Realtime (otro operador pudo cambiarlo).
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { actualizarAvisos } from '@/app/admin/marcadores/[id]/control/actions';
+import { createClient } from '@/lib/supabase/client';
 import { anunciarVoz, desbloquearAudio, tocarBeep } from '@/lib/audio-marcador';
 import {
   AVISOS_CATALOGO,
@@ -18,6 +20,8 @@ import type { Marcador } from '@/lib/types';
 
 const CUENTA_OPCIONES = [0, 3, 5, 10, 15, 20];
 
+type PaqueteMin = { id: string; nombre: string };
+
 export function AvisosCronometro({ m }: { m: Marcador }) {
   const cfg = configAvisos(m);
   const [avisos, setAvisos] = useState<number[]>(cfg.avisos);
@@ -25,12 +29,25 @@ export function AvisosCronometro({ m }: { m: Marcador }) {
   const [beep, setBeep] = useState<number>(cfg.beepDesde);
   const [cuenta, setCuenta] = useState<number>(cfg.cuentaVozDesde);
 
+  // Packs de voz disponibles (SQL 37). Lectura pública por RLS, así que el
+  // selector funciona igual desde el visor que desde el panel de control.
+  const [paquetes, setPaquetes] = useState<PaqueteMin[]>([]);
+  const [paquete, setPaquete] = useState<string>(m.voz_paquete_id ?? '');
+  useEffect(() => {
+    createClient()
+      .from('voces_paquetes')
+      .select('id, nombre')
+      .order('nombre')
+      .then(({ data }) => setPaquetes((data as PaqueteMin[] | null) ?? []));
+  }, []);
+
   // Re-sincroniza solo si CAMBIÓ la config (clave serializada), ajustando el
   // estado durante el render como recomienda React. Sin la clave, cualquier
   // UPDATE del reloj trae un array nuevo por identidad y borraría los
   // checkboxes que el operador aún no guardó.
   const claveCfg = JSON.stringify([
     m.avisos_seg, m.avisos_repetir, m.beep_desde_seg, m.voz_cuenta_desde,
+    m.voz_paquete_id,
   ]);
   const [claveVista, setClaveVista] = useState(claveCfg);
   if (claveVista !== claveCfg) {
@@ -39,6 +56,7 @@ export function AvisosCronometro({ m }: { m: Marcador }) {
     setRepetir(cfg.repetir);
     setBeep(cfg.beepDesde);
     setCuenta(cfg.cuentaVozDesde);
+    setPaquete(m.voz_paquete_id ?? '');
   }
 
   function alternar(seg: number) {
@@ -161,6 +179,31 @@ export function AvisosCronometro({ m }: { m: Marcador }) {
         El beep suena una vez por segundo desde ese valor hasta 1 (los últimos 5
         más agudos). La bocina larga suena al llegar a 0.
       </p>
+
+      <div>
+        <label className="block text-[0.7rem] text-tenue mb-1 uppercase tracking-widest">
+          Voz de los avisos
+        </label>
+        <select
+          name="voz_paquete_id"
+          value={paquete}
+          onChange={(e) => setPaquete(e.target.value)}
+          className="border border-borde rounded-lg px-2 py-2 bg-campo text-texto w-full text-sm"
+        >
+          <option value="">Voz del sistema (sintetizada)</option>
+          {paquetes.map((p) => (
+            <option key={p.id} value={p.id}>
+              🎭 {p.nombre}
+            </option>
+          ))}
+        </select>
+        <p className="text-[0.7rem] text-tenue mt-1">
+          Los avisos sin audio en el pack caen a la voz del sistema.{' '}
+          <Link href="/admin/voces" className="text-orange-400 hover:underline">
+            Gestionar packs
+          </Link>
+        </p>
+      </div>
 
       <button
         type="submit"

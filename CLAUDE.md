@@ -209,8 +209,16 @@ decide si la pichanga se realiza o se cancela.)
     Encendido por defecto en el visor y en el panel de control; re-pide el lock en cada
     `visibilitychange` (el navegador lo suelta al cambiar de pestaña). El soporte se detecta con
     `useSyncExternalStore` (getServerSnapshot=false) para no romper la hidratación.
+  - **SQL 37 — packs de voz** (`voces_paquetes` + `voces_clips` + bucket público `voces`,
+    `marcadores.voz_paquete_id`): el admin sube sus propios audios en `/admin/voces` y elige el
+    pack por marcador. Catálogo de ranuras en `lib/voces.ts` (`h<seg>` hitos, `c<n>` cuenta
+    10→1, `inicio`, `fin`) con guion sugerido y nombre de archivo para la subida masiva
+    (`claveDesdeNombre` acepta `h180.mp3`, `180.mp3`, `3min.mp3`…). El visor precarga los clips
+    en AudioBuffers (`cargarPaqueteVoz`/`reproducirClip`) para que suenen con la misma latencia
+    que el beep y compartan el desbloqueo del AudioContext; si falta un clip, ese aviso cae a
+    la voz sintetizada. El clip `fin` reemplaza a la bocina cuando existe.
   - Pendiente: integraciones de proyección al TV (QR del visor en el control, modo overlay
-    transparente para OBS, manifest PWA para Android TV), voces de personajes para los avisos.
+    transparente para OBS, manifest PWA para Android TV).
 
 ## Convenciones
 - Código y UI en español. Variables/tablas en español (ya establecido en el esquema).

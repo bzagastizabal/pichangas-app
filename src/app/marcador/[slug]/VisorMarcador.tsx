@@ -28,14 +28,18 @@ import {
 import {
   anunciarVoz,
   audioDesbloqueado,
+  cargarPaqueteVoz,
   desbloquearAudio,
   listarVocesEs,
   nombreVozActiva,
+  reproducirClip,
   setVozPreferida,
   suscribirVoces,
   tocarBeep,
   tocarBocina,
 } from '@/lib/audio-marcador';
+import { BUCKET_VOCES, claveCuenta, claveHito } from '@/lib/voces';
+import { urlPublica } from '@/lib/storage';
 import {
   aplicarEventoFast,
   canalFast,
@@ -579,6 +583,8 @@ export function VisorMarcador({
   // cruzar hacia abajo (seg < anterior), así un +30s o un reset no los
   // dispara y cada hito puede volver a sonar si el reloj vuelve a subir.
   const lastSegRef = useRef<number>(Math.ceil(inicial.reloj_restante_ms / 1000));
+  // Para disparar el clip "inicio" al pasar de pausa a marcha.
+  const corriendoAntesRef = useRef<boolean>(inicial.reloj_corriendo);
 
   const { estado: estadoPantalla, reintentar: reintentarPantalla } =
     useMantenerPantalla(pantallaOn);
@@ -628,6 +634,40 @@ export function VisorMarcador({
       supabase.removeChannel(chFast);
     };
   }, [inicial.id]);
+
+  // Pack de voz (SQL 37): baja y decodifica los clips cuando cambia el pack.
+  // Sin pack, limpia la caché para volver a la voz sintetizada.
+  useEffect(() => {
+    const id = m.voz_paquete_id ?? null;
+    if (!id) {
+      void cargarPaqueteVoz(null, {});
+      return;
+    }
+    let cancelado = false;
+    createClient()
+      .from('voces_clips')
+      .select('clave, path')
+      .eq('paquete_id', id)
+      .then(({ data }) => {
+        if (cancelado || !data) return;
+        const urls: Record<string, string> = {};
+        for (const c of data as Array<{ clave: string; path: string }>) {
+          urls[c.clave] = urlPublica(BUCKET_VOCES, c.path);
+        }
+        void cargarPaqueteVoz(id, urls);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [m.voz_paquete_id]);
+
+  // Clip "inicio": al pasar de pausa a marcha.
+  useEffect(() => {
+    if (m.reloj_corriendo && !corriendoAntesRef.current && sonidoOn) {
+      reproducirClip('inicio');
+    }
+    corriendoAntesRef.current = m.reloj_corriendo;
+  }, [m.reloj_corriendo, sonidoOn]);
 
   // Emite el evento predicho al canal fast y lo aplica en local antes de que
   // vuelva el Server Action (mismo patrón que el panel de control).
@@ -681,10 +721,13 @@ export function VisorMarcador({
       if (m.es_cronometro) {
         const seg = Math.ceil(nuevoReloj / 1000);
         if (seg < lastSegRef.current && sonidoOn && m.reloj_corriendo) {
+          // Con pack de voz suena el clip; si falta ese audio, voz del sistema.
           if (cfg.avisos.includes(seg)) {
-            anunciarVoz(textoAviso(seg), { veces: cfg.repetir });
+            if (!reproducirClip(claveHito(seg), { veces: cfg.repetir })) {
+              anunciarVoz(textoAviso(seg), { veces: cfg.repetir });
+            }
           } else if (seg >= 1 && seg <= cfg.cuentaVozDesde) {
-            anunciarVoz(numeroEnPalabras(seg));
+            if (!reproducirClip(claveCuenta(seg))) anunciarVoz(numeroEnPalabras(seg));
           }
           if (seg >= 1 && seg <= cfg.beepDesde) {
             tocarBeep(seg <= 5 ? 0.35 : 0.25, seg <= 5 ? 1400 : 1000);
@@ -701,7 +744,8 @@ export function VisorMarcador({
         lastRelojPosRef.current &&
         !positivo
       ) {
-        tocarBocina(false, m.bocina_tipo);
+        // El clip "fin" del pack reemplaza la bocina cuando existe.
+        if (!reproducirClip('fin')) tocarBocina(false, m.bocina_tipo);
       }
       lastRelojPosRef.current = positivo;
 

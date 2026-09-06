@@ -348,6 +348,8 @@ export type Marcador = {
   avisos_repetir: number | null;
   beep_desde_seg: number | null;
   voz_cuenta_desde: number | null;
+  // Pack de voz elegido (SQL 37). null = voz sintetizada del sistema.
+  voz_paquete_id: string | null;
   expira_en: string;
   creado_por: string;
   created_at: string;

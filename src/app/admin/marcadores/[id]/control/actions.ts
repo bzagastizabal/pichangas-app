@@ -322,17 +322,24 @@ export async function actualizarAvisos(formData: FormData): Promise<void> {
   const repetir = clamp(parseInt((formData.get('avisos_repetir') as string) || '2', 10) || 2, 1, 3);
   const beep = clamp(parseInt((formData.get('beep_desde_seg') as string) || '15', 10) || 0, 0, 60);
   const cuenta = clamp(parseInt((formData.get('voz_cuenta_desde') as string) || '0', 10) || 0, 0, 20);
+  const paqueteRaw = ((formData.get('voz_paquete_id') as string) || '').trim();
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const supabase = await createClient();
-  const r = await supabase
-    .from('marcadores')
-    .update({
-      avisos_seg: avisos,
-      avisos_repetir: repetir,
-      beep_desde_seg: beep,
-      voz_cuenta_desde: cuenta,
-    })
-    .eq('id', id);
-  if (r.error) return; // columnas de SQL 36 ausentes: no bloquear al admin.
+  const upd: Record<string, unknown> = {
+    avisos_seg: avisos,
+    avisos_repetir: repetir,
+    beep_desde_seg: beep,
+    voz_cuenta_desde: cuenta,
+    voz_paquete_id: UUID.test(paqueteRaw) ? paqueteRaw : null,
+  };
+  const r = await supabase.from('marcadores').update(upd).eq('id', id);
+  if (r.error && /voz_paquete_id/.test(r.error.message)) {
+    // SQL 37 aún no corrió: guardamos igual el resto de la config.
+    delete upd.voz_paquete_id;
+    await supabase.from('marcadores').update(upd).eq('id', id);
+  } else if (r.error) {
+    return; // columnas de SQL 36 ausentes: no bloquear al admin.
+  }
   refresh();
 }
 

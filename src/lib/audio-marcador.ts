@@ -357,3 +357,72 @@ export function tocarBocina(corta = false, tipo: BocinaTipo = 'ncaa', volumen = 
     noiseSrc.start(t);
   }
 }
+
+// ---- Packs de voz (clips subidos por el admin, SQL 37) -------------------
+// Precargamos los audios en AudioBuffers: se disparan con la misma latencia
+// que el beep y comparten el desbloqueo del AudioContext (clave en iOS, donde
+// un <audio> nuevo por aviso quedaría bloqueado).
+
+const clips = new Map<string, AudioBuffer>();
+let paqueteCargado: string | null = null;
+
+// Descarga y decodifica los clips del pack. Idempotente por id de pack: si ya
+// está cargado no vuelve a bajar nada. Los clips rotos se ignoran (ese aviso
+// cae a la voz sintetizada).
+export async function cargarPaqueteVoz(
+  paqueteId: string | null,
+  urlsPorClave: Record<string, string>,
+): Promise<number> {
+  if (paqueteCargado === paqueteId) return clips.size;
+  paqueteCargado = paqueteId;
+  clips.clear();
+  if (!paqueteId) return 0;
+  const c = getCtx();
+  if (!c) return 0;
+  await Promise.all(
+    Object.entries(urlsPorClave).map(async ([clave, url]) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const datos = await res.arrayBuffer();
+        clips.set(clave, await c.decodeAudioData(datos));
+      } catch {
+        // Sin clip: el visor usará anunciarVoz() para ese aviso.
+      }
+    }),
+  );
+  return clips.size;
+}
+
+export function hayClip(clave: string): boolean {
+  return clips.has(clave);
+}
+
+export function clipsCargados(): number {
+  return clips.size;
+}
+
+// Reproduce el clip `veces` seguidas (con un respiro entre repeticiones).
+// Devuelve false si no existe o el audio no está desbloqueado: el llamador
+// debe caer a anunciarVoz().
+export function reproducirClip(
+  clave: string,
+  opciones?: { veces?: number; volumen?: number },
+): boolean {
+  const c = ctx;
+  const buf = clips.get(clave);
+  if (!c || !unlocked || !buf) return false;
+  const veces = Math.max(1, Math.min(3, Math.round(opciones?.veces ?? 1)));
+  const gain = c.createGain();
+  gain.gain.value = opciones?.volumen ?? 1;
+  gain.connect(c.destination);
+  let t = c.currentTime;
+  for (let i = 0; i < veces; i++) {
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    src.start(t);
+    t += buf.duration + 0.25;
+  }
+  return true;
+}
