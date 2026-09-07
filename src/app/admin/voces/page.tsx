@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { RANURAS, type VozPaquete } from '@/lib/voces';
+import { BotonSubmit } from '@/components/BotonSubmit';
 import { crearPaquete } from './actions';
 
 const input = 'border border-borde p-2 rounded bg-campo text-texto text-sm';
@@ -46,9 +47,13 @@ export default async function VocesPage() {
           <label className="block text-xs text-tenue mb-1">Descripción</label>
           <input name="descripcion" className={`${input} w-full`} placeholder="Opcional" />
         </div>
-        <button type="submit" className="bg-orange-600 text-white px-4 py-2 rounded text-sm">
+        {/* BotonSubmit evita el doble-click que crea dos packs iguales. */}
+        <BotonSubmit
+          className="bg-orange-600 text-white px-4 py-2 rounded text-sm"
+          pendiente="Creando…"
+        >
           Crear pack
-        </button>
+        </BotonSubmit>
       </form>
 
       {paquetes.length === 0 ? (
