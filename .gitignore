@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Audios fuente de los packs de voz (se suben a Supabase Storage, no al repo)
+voces/

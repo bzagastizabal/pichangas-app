@@ -18,7 +18,9 @@ import {
 } from '@/lib/cronometro-avisos';
 import type { Marcador } from '@/lib/types';
 
-const CUENTA_OPCIONES = [0, 3, 5, 10, 15, 20];
+// 9 es útil con packs de voz: el aviso de 10 s ya dice "faltan diez segundos",
+// así que la cuenta hablada arranca en nueve y no se repite el diez.
+const CUENTA_OPCIONES = [0, 3, 5, 9, 10, 15, 20];
 
 type PaqueteMin = { id: string; nombre: string };
 
