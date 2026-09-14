@@ -1,5 +1,8 @@
-// Genera un mensaje de WhatsApp con la convocatoria y la lista de inscritos.
-// Toggles para incluir teléfonos, estado de pago, link de mapa y numeración.
+// Genera un mensaje de WhatsApp con la convocatoria. Dos modos:
+//  - 'lista': convocatoria + lista de inscritos (toggles de teléfonos, estado
+//    de pago, numeración, vacíos y "En espera").
+//  - 'info': solo los datos de la pichanga y los cupos disponibles, sin
+//    nombres — para promocionar en grupos donde no conviene exponer la lista.
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -58,6 +61,16 @@ function fmtHora(d: Date): string {
     .trim();
 }
 
+// Línea de cupos del modo 'info': singular, lleno (la inscripción sigue
+// abierta como lista de espera) y el total para dar contexto.
+function lineaCupos(disponibles: number, totales: number): string {
+  if (disponibles <= 0) return '⛔ Cupos completos — inscríbete en la lista de espera';
+  if (disponibles === 1) return `🔥 ¡Queda 1 cupo disponible! (de ${totales})`;
+  return `🔥 Quedan ${disponibles} cupos disponibles (de ${totales})`;
+}
+
+type Modo = 'lista' | 'info';
+
 function rangoHorario(isoInicio: string, duracionH: number): string {
   const ini = new Date(isoInicio);
   const fin = new Date(ini.getTime() + duracionH * 3600 * 1000);
@@ -97,6 +110,7 @@ export function CopiarLista({
   const [numerar, setNumerar] = useState(true);
   const [mostrarVacios, setMostrarVacios] = useState(true);
   const [conEspera, setConEspera] = useState(true);
+  const [modo, setModo] = useState<Modo>('lista');
   const [copiado, setCopiado] = useState(false);
 
   const texto = useMemo(() => {
@@ -107,6 +121,11 @@ export function CopiarLista({
     lineas.push(`🗓️ ${fmtFecha(fechaIso)}`);
     lineas.push(`🕛 ${rangoHorario(fechaIso, duracionHoras)}`);
     lineas.push(`🤑 S/${costo} por jugador`);
+    if (modo === 'info') {
+      lineas.push(lineaCupos(cuposDisponibles, cuposTotales));
+      lineas.push(`👉 Inscríbete: ${inscribirUrl}`);
+      return lineas.join('\n');
+    }
     lineas.push(`${cuposDisponibles} cupos disponibles`);
     lineas.push(`👉 Inscríbete: ${inscribirUrl}`);
     lineas.push('');
@@ -159,6 +178,7 @@ export function CopiarLista({
     numerar,
     mostrarVacios,
     conEspera,
+    modo,
   ]);
 
   async function copiar() {
@@ -192,27 +212,58 @@ export function CopiarLista({
             copiado ? 'bg-green-600' : 'bg-orange-600 hover:bg-orange-500'
           }`}
         >
-          {copiado ? '✓ Copiado' : '📋 Copiar mensaje'}
+          {copiado ? '✓ Copiado' : modo === 'info' ? '📋 Copiar solo info' : '📋 Copiar mensaje'}
         </button>
       </div>
 
+      {/* Qué se copia: la vista previa de abajo muestra exactamente ese texto. */}
+      <div className="inline-flex rounded-lg ring-1 ring-white/10 bg-black/30 p-0.5 text-xs">
+        {(
+          [
+            { valor: 'lista', etiqueta: '👥 Con lista de inscritos' },
+            { valor: 'info', etiqueta: '📣 Solo info y cupos' },
+          ] as const
+        ).map((op) => (
+          <button
+            key={op.valor}
+            type="button"
+            onClick={() => {
+              setModo(op.valor);
+              setCopiado(false);
+            }}
+            aria-pressed={modo === op.valor}
+            className={`rounded-md px-3 py-1.5 font-medium transition ${
+              modo === op.valor
+                ? 'bg-orange-600 text-white'
+                : 'text-tenue hover:text-texto'
+            }`}
+          >
+            {op.etiqueta}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-tenue">
-        <label className="flex items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={conTel}
-            onChange={(e) => setConTel(e.target.checked)}
-          />
-          Teléfonos
-        </label>
-        <label className="flex items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={conPago}
-            onChange={(e) => setConPago(e.target.checked)}
-          />
-          Estado de pago (✅⏳💸)
-        </label>
+        {modo === 'lista' && (
+          <>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={conTel}
+                onChange={(e) => setConTel(e.target.checked)}
+              />
+              Teléfonos
+            </label>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={conPago}
+                onChange={(e) => setConPago(e.target.checked)}
+              />
+              Estado de pago (✅⏳💸)
+            </label>
+          </>
+        )}
         {sedeMapa && (
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -223,30 +274,34 @@ export function CopiarLista({
             Link del lugar
           </label>
         )}
-        <label className="flex items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={numerar}
-            onChange={(e) => setNumerar(e.target.checked)}
-          />
-          Numerar lista
-        </label>
-        <label className="flex items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={mostrarVacios}
-            onChange={(e) => setMostrarVacios(e.target.checked)}
-          />
-          Mostrar cupos vacíos
-        </label>
-        {enEspera.length > 0 && (
+        {modo === 'lista' && (
+          <>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={numerar}
+                onChange={(e) => setNumerar(e.target.checked)}
+              />
+              Numerar lista
+            </label>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={mostrarVacios}
+                onChange={(e) => setMostrarVacios(e.target.checked)}
+              />
+              Mostrar cupos vacíos
+            </label>
+          </>
+        )}
+        {modo === 'lista' && enEspera.length > 0 && (
           <label className="flex items-center gap-1 cursor-pointer">
             <input
               type="checkbox"
               checked={conEspera}
               onChange={(e) => setConEspera(e.target.checked)}
             />
-            Mostrar "En espera" ({enEspera.length})
+            Mostrar “En espera” ({enEspera.length})
           </label>
         )}
       </div>
