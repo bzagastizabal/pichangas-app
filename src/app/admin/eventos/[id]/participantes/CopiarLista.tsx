@@ -71,6 +71,18 @@ function lineaCupos(disponibles: number, totales: number): string {
 
 type Modo = 'lista' | 'info';
 
+type Contacto = { id: string; etiqueta: string; whatsapp: string };
+
+// "987654321" -> "987 654 321" (celular peruano); con código de país
+// "51987654321" -> "+51 987 654 321". Otros formatos se dejan tal cual.
+function fmtTel(tel: string): string {
+  const d = tel.replace(/\D/g, '');
+  const grupos = (n: string) => `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+  if (d.length === 9) return grupos(d);
+  if (d.length === 11 && d.startsWith('51')) return `+51 ${grupos(d.slice(2))}`;
+  return tel;
+}
+
 function rangoHorario(isoInicio: string, duracionH: number): string {
   const ini = new Date(isoInicio);
   const fin = new Date(ini.getTime() + duracionH * 3600 * 1000);
@@ -90,6 +102,8 @@ export function CopiarLista({
   inscribirUrl,
   items,
   enEspera = [],
+  contactos = [],
+  contactoInicial = null,
 }: {
   titulo: string;
   sedeNombre: string;
@@ -103,6 +117,9 @@ export function CopiarLista({
   inscribirUrl: string;
   items: Item[];
   enEspera?: ItemEspera[];
+  // Coordinadores (Staff con WhatsApp) para "o al interno al <número>".
+  contactos?: Contacto[];
+  contactoInicial?: string | null;
 }) {
   const [conTel, setConTel] = useState(true);
   const [conPago, setConPago] = useState(true);
@@ -111,6 +128,7 @@ export function CopiarLista({
   const [mostrarVacios, setMostrarVacios] = useState(true);
   const [conEspera, setConEspera] = useState(true);
   const [modo, setModo] = useState<Modo>('lista');
+  const [contactoId, setContactoId] = useState<string>(contactoInicial ?? '');
   const [copiado, setCopiado] = useState(false);
 
   const texto = useMemo(() => {
@@ -121,13 +139,17 @@ export function CopiarLista({
     lineas.push(`🗓️ ${fmtFecha(fechaIso)}`);
     lineas.push(`🕛 ${rangoHorario(fechaIso, duracionHoras)}`);
     lineas.push(`🤑 S/${costo} por jugador`);
+    const contacto = contactos.find((c) => c.id === contactoId);
+    const lineaInscripcion = contacto
+      ? `👉 Inscríbete en ${inscribirUrl} o al interno al ${fmtTel(contacto.whatsapp)}`
+      : `👉 Inscríbete: ${inscribirUrl}`;
     if (modo === 'info') {
       lineas.push(lineaCupos(cuposDisponibles, cuposTotales));
-      lineas.push(`👉 Inscríbete: ${inscribirUrl}`);
+      lineas.push(lineaInscripcion);
       return lineas.join('\n');
     }
     lineas.push(`${cuposDisponibles} cupos disponibles`);
-    lineas.push(`👉 Inscríbete: ${inscribirUrl}`);
+    lineas.push(lineaInscripcion);
     lineas.push('');
     lineas.push(`Lista (${items.length}/${cuposTotales}):`);
     // Cuando hay que mostrar los vacíos, iteramos hasta cuposTotales y
@@ -179,6 +201,8 @@ export function CopiarLista({
     mostrarVacios,
     conEspera,
     modo,
+    contactos,
+    contactoId,
   ]);
 
   async function copiar() {
@@ -242,6 +266,27 @@ export function CopiarLista({
           </button>
         ))}
       </div>
+
+      {contactos.length > 0 && (
+        <label className="flex flex-wrap items-center gap-2 text-xs text-tenue">
+          <span>Inscripción al interno con:</span>
+          <select
+            value={contactoId}
+            onChange={(e) => {
+              setContactoId(e.target.value);
+              setCopiado(false);
+            }}
+            className="border border-borde rounded px-2 py-1 bg-campo text-texto text-xs"
+          >
+            {contactos.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.etiqueta} — {fmtTel(c.whatsapp)}
+              </option>
+            ))}
+            <option value="">Solo el link (sin número)</option>
+          </select>
+        </label>
+      )}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-tenue">
         {modo === 'lista' && (

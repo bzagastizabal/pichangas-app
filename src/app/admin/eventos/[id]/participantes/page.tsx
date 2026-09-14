@@ -12,6 +12,43 @@ import { CopiarLista } from './CopiarLista';
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
+type ContactoStaff = {
+  id: string;
+  nombre: string;
+  cargo: string | null;
+  whatsapp: string;
+  es_default: boolean;
+};
+
+// "Master 40" ≈ "M40", "Libre" ≈ "LIBRE": el cargo del coordinador en Staff se
+// escribe distinto al nombre de la categoría, así que comparamos normalizado.
+function claveArea(t: string | null | undefined): string {
+  return (t ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/master/g, 'm')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+// Coordinador sugerido para el mensaje: el de la categoría del evento; si no
+// hay (pichanga sin categoría), el de "Pichangas"; si no, el contacto por
+// defecto de Staff; si no, el primero con WhatsApp.
+function coordinadorSugerido(
+  contactos: ContactoStaff[],
+  categoria: string | null | undefined,
+  tipo: TipoEvento,
+): string | null {
+  const porArea = (area: string) =>
+    area ? contactos.find((c) => claveArea(c.cargo) === area) : undefined;
+  const elegido =
+    porArea(claveArea(categoria)) ??
+    (tipo === 'pichanga' ? porArea('pichangas') : undefined) ??
+    contactos.find((c) => c.es_default) ??
+    contactos[0];
+  return elegido?.id ?? null;
+}
+
 const etiquetaPago: Record<EstadoPagoJugador, string> = {
   pagado: 'pagado',
   en_revision: 'en revisión',
@@ -110,6 +147,17 @@ export default async function ParticipantesPage({
     (i) => i.estado === 'pendiente' || i.estado === 'confirmado',
   ).length;
   const cuposDisponibles = Math.max(0, evento.cupos_totales - ocupados);
+
+  // Contactos para "o al interno al <número>" del mensaje de WhatsApp.
+  const { data: staffData } = await supabase
+    .from('staff')
+    .select('id, nombre, cargo, whatsapp, es_default')
+    .eq('activo', true)
+    .not('whatsapp', 'is', null)
+    .order('orden')
+    .order('nombre');
+  const contactos = ((staffData as ContactoStaff[] | null) ?? []).filter((c) => c.whatsapp);
+  const contactoInicial = coordinadorSugerido(contactos, evento.categorias?.nombre, evento.tipo);
   // Solo los que tienen cupo (pendiente/confirmado) entran a la lista
   // copiada — los de lista de espera y los liberados van al apartado "En espera".
   const itemsCopia = inscritos
@@ -162,6 +210,12 @@ export default async function ParticipantesPage({
         inscribirUrl={`${base}/inscribir/${evento.slug_inscripcion}`}
         items={itemsCopia}
         enEspera={itemsEnEspera}
+        contactos={contactos.map((c) => ({
+          id: c.id,
+          etiqueta: c.cargo ? `${c.nombre} · ${c.cargo}` : c.nombre,
+          whatsapp: c.whatsapp,
+        }))}
+        contactoInicial={contactoInicial}
       />
 
       <form action={agregarParticipante} className="flex flex-wrap items-center gap-2 rounded-lg border border-borde p-4">
