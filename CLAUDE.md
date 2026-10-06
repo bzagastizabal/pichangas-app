@@ -192,6 +192,10 @@ decide si la pichanga se realiza o se cancela.)
     WhatsApp ve `🏀 LOCAL 47 – 52 VISITANTE · Marcador en vivo · Q3` con la card "MARCADOR EN
     VIVO" en rojo, no la card genérica del club.
   - BotonAyuda se oculta en `/marcador/*` para no contaminar la proyección.
+  - **Marca de agua**: `<MarcaAgua/>` (insignia CMT, `mix-blend-screen` + `grayscale(1)` al 14%)
+    de fondo en el marcador y en el cronómetro — en gris no compite con los dígitos ni baja el
+    contraste en proyectores de pocos lúmenes. En el cronómetro va más grande (72vmin) porque
+    el reloj gigante tapa el centro.
   - **SQL 36 — avisos configurables del cronómetro**: `avisos_seg int[]` (hitos de voz,
     default {180,120,60,30,10}), `avisos_repetir` (default 2 — cada aviso se dice dos veces),
     `beep_desde_seg` (default 15 — beep por segundo hasta 1, los últimos 5 más agudos) y

@@ -144,6 +144,34 @@ function SelectorVoz() {
 type Accion = (fd: FormData) => void | Promise<void>;
 type FastFn = <A extends Accion>(accion: A, evOrFn: EventoFast | (() => EventoFast)) => A;
 
+// Insignia CMT de fondo. `mix-blend-screen` la mezcla con el fondo en vez de
+// taparlo, así no le baja el contraste a los números sobre negro. En el
+// cronómetro va más grande porque el reloj gigante tapa el centro.
+function MarcaAgua({
+  ancho = 'min(50vmin, 60vmax)',
+  opacidad = 0.14,
+}: {
+  ancho?: string;
+  opacidad?: number;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      aria-hidden
+    >
+      <Image
+        src="/cmt_insignia.png"
+        alt=""
+        width={1500}
+        height={1500}
+        priority
+        className="h-auto mix-blend-screen"
+        style={{ width: ancho, opacity: opacidad, filter: 'grayscale(1)' }}
+      />
+    </div>
+  );
+}
+
 // Fábricas de eventos fast: Date.now() se sella al hacer click, no al pintar.
 const evPlay = (): EventoFast => ({ t: 'play', nowMs: Date.now() });
 const evAjuste = (d: number): EventoFast => ({ t: 'ajuste', d, nowMs: Date.now() });
@@ -844,6 +872,8 @@ export function VisorMarcador({
             'radial-gradient(ellipse at bottom, rgba(0,0,0,0.35), transparent 70%)',
         }}
       >
+        <MarcaAgua ancho="min(72vmin, 80vmax)" />
+
         {/* Botones flotantes */}
         <div className="absolute right-3 top-3 z-40 flex items-center gap-2 opacity-40 hover:opacity-100 focus-within:opacity-100 transition">
           {puedeControlar && (
@@ -962,21 +992,8 @@ export function VisorMarcador({
         paddingRight: 'env(safe-area-inset-right)',
       }}
     >
-      {/* Insignia CMT como watermark sutil al centro */}
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-        aria-hidden
-      >
-        <Image
-          src="/cmt_insignia.png"
-          alt=""
-          width={1500}
-          height={1500}
-          priority
-          className="h-auto opacity-[0.04] mix-blend-screen"
-          style={{ width: 'min(50vmin, 60vmax)' }}
-        />
-      </div>
+      {/* Insignia CMT como marca de agua al centro */}
+      <MarcaAgua />
 
       {/* Líneas de "cancha" decorativas */}
       <div
