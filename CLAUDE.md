@@ -238,6 +238,15 @@ decide si la pichanga se realiza o se cancela.)
     delta)`, que solo acepta esas acciones y acota el ajuste a ±60 s. El cuerpo del reloj se
     extrajo a `marcador_reloj_aplicar()`, compartido con el RPC de admin. `<LinkOperador/>` en
     el panel de control copia el link y lo regenera (`marcador_clave_regenerar`) si se filtró.
+  - **SQL 40 — panel de efectos (soundboard)**: `efectos_sonido` (biblioteca global, lectura
+    pública / escritura admin) + bucket público `efectos` + `marcadores.efecto_pulsos` y
+    `efecto_actual`. Se gestionan en `/admin/sonidos` (subida múltiple, nombre, emoji, orden,
+    activar, borrar) y se disparan desde el panel 🔊 Sonidos del dock — también desde el link
+    de operador, que SOLO los usa. El disparo va por RPC (`marcador_efecto` admin /
+    `marcador_efecto_op` por clave), igual que la bocina: incrementa un contador y cada visor
+    con sonido activado reproduce el clip, así suena en el equipo que proyecta y no solo en el
+    móvil del que lo toca. `reproducirEfecto()` cachea el AudioBuffer por URL y
+    `precargarEfectos()` los baja al activar el sonido.
   - Pendiente: integraciones de proyección al TV (QR del visor en el control, modo overlay
     transparente para OBS, manifest PWA para Android TV).
 

@@ -5,6 +5,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getSesion } from '@/lib/auth';
+import { urlPublica } from '@/lib/storage';
+import { BUCKET_EFECTOS, type EfectoSonido, type EfectoVisor } from '@/lib/sonidos';
 import type { Marcador } from '@/lib/types';
 import { VisorMarcador } from './VisorMarcador';
 
@@ -88,11 +90,27 @@ export default async function MarcadorPublicoPage({
     if (ok === true) claveOperador = op;
   }
 
+  // Panel de efectos (SQL 40). Lectura pública: el proyector los necesita
+  // aunque nadie haya iniciado sesión.
+  const { data: efData } = await supabase
+    .from('efectos_sonido')
+    .select('id, nombre, emoji, path, orden, activo, created_at')
+    .eq('activo', true)
+    .order('orden')
+    .order('created_at');
+  const efectos: EfectoVisor[] = ((efData as EfectoSonido[] | null) ?? []).map((e) => ({
+    id: e.id,
+    nombre: e.nombre,
+    emoji: e.emoji,
+    url: urlPublica(BUCKET_EFECTOS, e.path),
+  }));
+
   return (
     <VisorMarcador
       inicial={m}
       puedeControlar={puedeControlar}
       claveOperador={claveOperador}
+      efectos={efectos}
     />
   );
 }

@@ -16,6 +16,7 @@ const grupos = [
       { href: '/admin/publicaciones', label: 'Publicaciones', icon: '📰' },
       { href: '/admin/marcadores', label: 'Marcadores', icon: '🏀' },
       { href: '/admin/voces', label: 'Voces', icon: '🎭' },
+      { href: '/admin/sonidos', label: 'Sonidos', icon: '🔊' },
       { href: '/admin/torneos', label: 'Torneos', icon: '🏆' },
     ],
   },

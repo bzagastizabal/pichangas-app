@@ -22,9 +22,12 @@ import { fijarTotalCronometro } from '@/app/admin/marcadores/[id]/control/action
 import {
   accionReloj,
   accionRelojOp,
+  dispararEfecto,
+  dispararEfectoOp,
   masNuevo,
   type AccionReloj,
 } from '@/lib/marcador-acciones';
+import type { EfectoVisor } from '@/lib/sonidos';
 import {
   anunciarVoz,
   audioDesbloqueado,
@@ -32,7 +35,9 @@ import {
   desbloquearAudio,
   listarVocesEs,
   nombreVozActiva,
+  precargarEfectos,
   reproducirClip,
+  reproducirEfecto,
   setVozPreferida,
   suscribirVoces,
   tocarBeep,
@@ -182,6 +187,8 @@ function DockCronometro({
   pendiente,
   abierto,
   soloTiempo = false,
+  efectos,
+  onEfecto,
   onCerrar,
 }: {
   m: Marcador;
@@ -193,17 +200,48 @@ function DockCronometro({
   // Operador por link (SQL 39): solo tiempo y bocina. Sin avisos ni total —
   // esos escriben config y la RPC del operador ni siquiera los acepta.
   soloTiempo?: boolean;
+  // Soundboard (SQL 40): disponible también para el operador — solo para
+  // usarlo; la biblioteca se gestiona en /admin/sonidos.
+  efectos: EfectoVisor[];
+  onEfecto: (id: string) => void;
   onCerrar: () => void;
 }) {
-  const [panel, setPanel] = useState<'ninguno' | 'avisos' | 'total'>('ninguno');
+  const [panel, setPanel] = useState<'ninguno' | 'avisos' | 'total' | 'sonidos'>('ninguno');
   const totalSeg = m.duracion_periodo_seg;
 
   if (!abierto) return null;
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* Panel de sonidos: rejilla de efectos, un toque = suena en el proyector. */}
+      {panel === 'sonidos' && (
+        <div className="w-full max-w-2xl max-h-[52vh] overflow-y-auto rounded-2xl bg-zinc-950/95 backdrop-blur ring-1 ring-white/15 p-3 shadow-2xl">
+          {efectos.length === 0 ? (
+            <p className="text-xs text-tenue text-center py-2">
+              Todavía no hay efectos cargados.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {efectos.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => onEfecto(e.id)}
+                  className="flex flex-col items-center justify-center gap-1 rounded-xl bg-zinc-800/80 ring-1 ring-white/10 px-2 py-3 text-zinc-100 hover:bg-zinc-700/80 active:scale-[0.96] transition"
+                >
+                  <span className="text-2xl leading-none">{e.emoji || '🔊'}</span>
+                  <span className="text-[0.65rem] leading-tight text-center line-clamp-2">
+                    {e.nombre}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Panel desplegable (avisos / total) — nunca para el operador. */}
-      {!soloTiempo && panel !== 'ninguno' && (
+      {!soloTiempo && (panel === 'avisos' || panel === 'total') && (
         <div className="w-full max-w-2xl max-h-[52vh] overflow-y-auto rounded-2xl bg-zinc-950/95 backdrop-blur ring-1 ring-white/15 p-4 shadow-2xl">
           {panel === 'avisos' && <AvisosCronometro m={m} />}
           {panel === 'total' && (
@@ -295,6 +333,17 @@ function DockCronometro({
           <BotonDock tono="neutro" pequeno onClick={() => ejecutar('bocina')}>
             📣 Bocina
           </BotonDock>
+          <button
+            type="button"
+            onClick={() => setPanel((p) => (p === 'sonidos' ? 'ninguno' : 'sonidos'))}
+            className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
+              panel === 'sonidos'
+                ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
+                : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
+            }`}
+          >
+            🔊 Sonidos
+          </button>
           {!soloTiempo && (
             <>
               <button
@@ -584,6 +633,7 @@ export function VisorMarcador({
   inicial,
   puedeControlar = false,
   claveOperador = null,
+  efectos = [],
 }: {
   inicial: Marcador;
   // true solo para administradores: habilita el dock de control en la misma
@@ -592,6 +642,8 @@ export function VisorMarcador({
   // Clave del link de operador ya VALIDADA en el servidor (SQL 39): habilita
   // el dock recortado (tiempo + bocina) sin sesión.
   claveOperador?: string | null;
+  // Efectos activos (SQL 40), ya resueltos a URL pública por la página.
+  efectos?: EfectoVisor[];
 }) {
   const [m, setM] = useState<Marcador>(inicial);
   const [relojMs, setRelojMs] = useState(inicial.reloj_restante_ms);
@@ -610,6 +662,7 @@ export function VisorMarcador({
   const lastShotSecRef = useRef<number>(Math.ceil(inicial.shot_restante_ms / 1000));
   const lastRelojPosRef = useRef<boolean>(inicial.reloj_restante_ms > 0);
   const lastBocinaRef = useRef<number>(inicial.bocina_pulsos ?? 0);
+  const lastEfectoRef = useRef<number>(inicial.efecto_pulsos ?? 0);
   // Cronómetro: último segundo mostrado. Los avisos se disparan SOLO al
   // cruzar hacia abajo (seg < anterior), así un +30s o un reset no los
   // dispara y cada hito puede volver a sonar si el reloj vuelve a subir.
@@ -805,6 +858,33 @@ export function VisorMarcador({
     };
   }, [m, sonidoOn]);
 
+  // Soundboard: el disparo lo valida el servidor (admin por sesión, operador
+  // por clave) y vuelve como fila; el resto de visores se entera por Realtime.
+  async function ejecutarEfecto(efectoId: string) {
+    const fila = modoOperador && claveOperador
+      ? await dispararEfectoOp(inicial.slug, claveOperador, efectoId)
+      : await dispararEfecto(inicial.id, efectoId);
+    if (fila) setM((prev) => (masNuevo(prev, fila) ? fila : prev));
+  }
+
+  // Suena en CADA visor con el sonido activado (el proyector es el que tiene
+  // parlantes). Igual que la bocina: reacciona al contador, no al evento.
+  useEffect(() => {
+    const actual = m.efecto_pulsos ?? 0;
+    if (actual > lastEfectoRef.current && sonidoOn && audioDesbloqueado()) {
+      const ef = efectos.find((e) => e.id === m.efecto_actual);
+      if (ef) void reproducirEfecto(ef.url);
+    }
+    lastEfectoRef.current = actual;
+  }, [m.efecto_pulsos, m.efecto_actual, sonidoOn, efectos]);
+
+  // Al activar el sonido bajamos los efectos: el primer toque no espera red.
+  useEffect(() => {
+    if (sonidoOn && efectos.length) {
+      void precargarEfectos(efectos.map((e) => e.url));
+    }
+  }, [sonidoOn, efectos]);
+
   // Bocina remota: el admin incrementa bocina_pulsos desde el control.
   useEffect(() => {
     const actual = m.bocina_pulsos ?? 0;
@@ -968,6 +1048,8 @@ export function VisorMarcador({
             pendiente={pendienteReloj}
             abierto={dockAbierto}
             soloTiempo={modoOperador}
+            efectos={efectos}
+            onEfecto={(id) => void ejecutarEfecto(id)}
             onCerrar={() => setDockAbierto(false)}
           />
         )}

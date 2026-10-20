@@ -426,3 +426,56 @@ export function reproducirClip(
   }
   return true;
 }
+
+// ---- Efectos de sonido (soundboard, SQL 40) ------------------------------
+// Caché por URL: el primer disparo descarga y decodifica; los siguientes son
+// instantáneos. Comparte el AudioContext (y su desbloqueo) con el resto.
+
+const efectos = new Map<string, AudioBuffer>();
+
+async function bufferDeUrl(url: string): Promise<AudioBuffer | null> {
+  const cacheado = efectos.get(url);
+  if (cacheado) return cacheado;
+  const c = getCtx();
+  if (!c) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = await c.decodeAudioData(await res.arrayBuffer());
+    efectos.set(url, buf);
+    return buf;
+  } catch {
+    return null;
+  }
+}
+
+// Descarga en segundo plano para que el primer toque no espere la red.
+export async function precargarEfectos(urls: string[]): Promise<void> {
+  await Promise.all(urls.map((u) => bufferDeUrl(u)));
+}
+
+// Reproduce el efecto. Se superpone a lo que esté sonando (no cancela el
+// reloj ni los avisos) y corta el anterior del MISMO clip para que un toque
+// repetido no se apile.
+let ultimoEfecto: AudioBufferSourceNode | null = null;
+
+export async function reproducirEfecto(url: string, volumen = 0.9): Promise<boolean> {
+  const c = ctx;
+  if (!c || !unlocked) return false;
+  const buf = await bufferDeUrl(url);
+  if (!buf) return false;
+  try {
+    ultimoEfecto?.stop();
+  } catch {
+    // Ya terminó: nada que cortar.
+  }
+  const gain = c.createGain();
+  gain.gain.value = volumen;
+  gain.connect(c.destination);
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.connect(gain);
+  src.start();
+  ultimoEfecto = src;
+  return true;
+}

@@ -83,3 +83,34 @@ export function masNuevo(previo: Marcador, entrante: Marcador): boolean {
   if (!a || !b) return true; // sin SQL 38 todavía: nos quedamos con lo último.
   return b >= a;
 }
+
+// ---- Efectos de sonido (SQL 40) -----------------------------------------
+// El disparo va por RPC (no por broadcast) para que lo valide el servidor:
+// admin por sesión, operador por clave del link. El contador que incrementa
+// llega a TODOS los visores por Realtime, así suena en el que proyecta.
+
+export async function dispararEfecto(
+  marcadorId: string,
+  efectoId: string,
+): Promise<Marcador | null> {
+  const { data, error } = await createClient().rpc('marcador_efecto', {
+    p_id: marcadorId,
+    p_efecto: efectoId,
+  });
+  if (error || !data) return null;
+  return data as Marcador;
+}
+
+export async function dispararEfectoOp(
+  slug: string,
+  clave: string,
+  efectoId: string,
+): Promise<Marcador | null> {
+  const { data, error } = await createClient().rpc('marcador_efecto_op', {
+    p_slug: slug,
+    p_clave: clave,
+    p_efecto: efectoId,
+  });
+  if (error || !data) return null;
+  return data as Marcador;
+}
