@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { baseUrl } from '@/lib/url';
 import type { Marcador } from '@/lib/types';
 import { ControlMarcador } from './ControlMarcador';
+import { LinkOperador } from './LinkOperador';
 
 export default async function ControlPage({
   params,
@@ -18,6 +19,16 @@ export default async function ControlPage({
   if (!data) notFound();
   const inicial = data as Marcador;
   const base = await baseUrl();
+
+  // Clave del link de operador (SQL 39). Tabla aparte con RLS solo-admin: el
+  // visor público nunca la ve. Si la migración no corrió, no hay fila y el
+  // bloque simplemente no se muestra.
+  const { data: claveRow } = await supabase
+    .from('marcador_claves')
+    .select('clave')
+    .eq('marcador_id', id)
+    .maybeSingle();
+  const claveOperador = (claveRow as { clave: string } | null)?.clave ?? null;
 
   return (
     <div className="space-y-4">
@@ -40,6 +51,13 @@ export default async function ControlPage({
           </a>
         </p>
       </div>
+      {inicial.es_cronometro && claveOperador && (
+        <LinkOperador
+          id={inicial.id}
+          url={`${base}/marcador/${inicial.slug}?op=${claveOperador}`}
+        />
+      )}
+
       <ControlMarcador inicial={inicial} />
     </div>
   );

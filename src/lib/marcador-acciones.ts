@@ -14,11 +14,12 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ajustarCronometro,
   resetReloj,
+  sonarBocina,
   togglePlay,
 } from '@/app/admin/marcadores/[id]/control/actions';
 import type { Marcador } from '@/lib/types';
 
-export type AccionReloj = 'play' | 'reset' | 'ajuste';
+export type AccionReloj = 'play' | 'reset' | 'ajuste' | 'bocina';
 
 export async function accionReloj(
   id: string,
@@ -48,8 +49,29 @@ async function respaldoServerAction(
   fd.set('id', id);
   if (accion === 'play') return togglePlay(fd);
   if (accion === 'reset') return resetReloj(fd);
+  if (accion === 'bocina') return sonarBocina(fd);
   fd.set('delta', String(deltaSeg));
   return ajustarCronometro(fd);
+}
+
+// Operador por link público (SQL 39): se identifica con slug + clave en vez de
+// sesión. La RPC valida la clave y solo acepta acciones de tiempo, así que un
+// link compartido nunca puede tocar colores, avisos ni la duración total.
+// Sin respaldo por Server Action: ese camino exige requireAdmin().
+export async function accionRelojOp(
+  slug: string,
+  clave: string,
+  accion: AccionReloj,
+  deltaSeg = 0,
+): Promise<Marcador | null> {
+  const { data, error } = await createClient().rpc('marcador_reloj_op', {
+    p_slug: slug,
+    p_clave: clave,
+    p_accion: accion,
+    p_delta: deltaSeg,
+  });
+  if (error || !data) return null;
+  return data as Marcador;
 }
 
 // Aplica la fila que devolvió el servidor solo si es más nueva que la que ya

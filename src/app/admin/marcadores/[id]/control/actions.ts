@@ -368,3 +368,14 @@ export async function fijarTotalCronometro(formData: FormData): Promise<void> {
     .eq('id', id);
   refresh();
 }
+
+// Rota la clave del link de operador (SQL 39). El link anterior deja de
+// funcionar al instante: útil si se filtró en un grupo equivocado.
+export async function regenerarClaveOperador(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = formData.get('id') as string;
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.rpc('marcador_clave_regenerar', { p_id: id });
+  refresh();
+}

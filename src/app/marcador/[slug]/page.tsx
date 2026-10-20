@@ -41,10 +41,14 @@ export async function generateMetadata({
 
 export default async function MarcadorPublicoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  // ?op=<clave> — link de operador (SQL 39): controles de tiempo sin sesión.
+  searchParams: Promise<{ op?: string }>;
 }) {
   const { slug } = await params;
+  const { op } = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase
     .from('marcadores')
@@ -73,5 +77,22 @@ export default async function MarcadorPublicoPage({
   const { perfil } = await getSesion();
   const puedeControlar = perfil?.rol === 'administrador';
 
-  return <VisorMarcador inicial={m} puedeControlar={puedeControlar} />;
+  // Operador por link: la clave se valida contra la DB (función SECURITY
+  // DEFINER) — nunca se compara en el cliente ni viaja la clave buena.
+  let claveOperador: string | null = null;
+  if (!puedeControlar && op) {
+    const { data: ok } = await supabase.rpc('marcador_clave_valida', {
+      p_slug: slug,
+      p_clave: op,
+    });
+    if (ok === true) claveOperador = op;
+  }
+
+  return (
+    <VisorMarcador
+      inicial={m}
+      puedeControlar={puedeControlar}
+      claveOperador={claveOperador}
+    />
+  );
 }

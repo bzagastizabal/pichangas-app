@@ -230,6 +230,14 @@ decide si la pichanga se realiza o se cancela.)
     nuevo. Los botones del reloj (visor y control) llaman la RPC DIRECTO desde el navegador
     (una llamada a Supabase, sin salto a Next ni refresh del RSC); los Server Actions quedan
     de respaldo y ambos caen al camino viejo si la migración no corrió.
+  - **SQL 39 — link público de operador**: `marcador_claves` (tabla APARTE porque `marcadores`
+    tiene SELECT público: una columna con la clave la regalaría a los espectadores) + trigger
+    que le da clave a cada marcador nuevo. `/marcador/<slug>?op=<clave>` muestra el dock
+    recortado (play/pausa, ±10/±30 s, reset, bocina) sin sesión; la página valida con
+    `marcador_clave_valida()` y los botones llaman `marcador_reloj_op(slug, clave, accion,
+    delta)`, que solo acepta esas acciones y acota el ajuste a ±60 s. El cuerpo del reloj se
+    extrajo a `marcador_reloj_aplicar()`, compartido con el RPC de admin. `<LinkOperador/>` en
+    el panel de control copia el link y lo regenera (`marcador_clave_regenerar`) si se filtró.
   - Pendiente: integraciones de proyección al TV (QR del visor en el control, modo overlay
     transparente para OBS, manifest PWA para Android TV).
 

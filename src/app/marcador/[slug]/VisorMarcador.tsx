@@ -18,11 +18,13 @@ import {
 import { AvisosCronometro } from '@/components/AvisosCronometro';
 import { useMantenerPantalla } from '@/lib/wake-lock';
 import { BotonPantalla } from '@/components/BotonPantalla';
+import { fijarTotalCronometro } from '@/app/admin/marcadores/[id]/control/actions';
 import {
-  fijarTotalCronometro,
-  sonarBocina,
-} from '@/app/admin/marcadores/[id]/control/actions';
-import { accionReloj, masNuevo, type AccionReloj } from '@/lib/marcador-acciones';
+  accionReloj,
+  accionRelojOp,
+  masNuevo,
+  type AccionReloj,
+} from '@/lib/marcador-acciones';
 import {
   anunciarVoz,
   audioDesbloqueado,
@@ -138,12 +140,6 @@ function SelectorVoz() {
   );
 }
 
-// Wrapper de acción: emite el evento predicho por el canal fast ANTES de
-// llamar al Server Action y lo aplica al estado local, igual que el panel de
-// control. Así el proyector (otro dispositivo) se entera en ~30-80 ms.
-type Accion = (fd: FormData) => void | Promise<void>;
-type FastFn = <A extends Accion>(accion: A, evOrFn: EventoFast | (() => EventoFast)) => A;
-
 // Insignia CMT de fondo. `mix-blend-screen` la mezcla con el fondo en vez de
 // taparlo, así no le baja el contraste a los números sobre negro. En el
 // cronómetro va más grande porque el reloj gigante tapa el centro.
@@ -182,19 +178,21 @@ const evAjuste = (d: number): EventoFast => ({ t: 'ajuste', d, nowMs: Date.now()
 
 function DockCronometro({
   m,
-  fast,
   ejecutar,
   pendiente,
   abierto,
+  soloTiempo = false,
   onCerrar,
 }: {
   m: Marcador;
-  fast: FastFn;
-  // Acciones del reloj: van directo a la RPC atómica (SQL 38), sin Server
+  // Acciones del reloj: van directo a la RPC atómica (SQL 38/39), sin Server
   // Action, para que el toque no espere el ida-y-vuelta a Next.
   ejecutar: (accion: AccionReloj, deltaSeg?: number) => void;
   pendiente: boolean;
   abierto: boolean;
+  // Operador por link (SQL 39): solo tiempo y bocina. Sin avisos ni total —
+  // esos escriben config y la RPC del operador ni siquiera los acepta.
+  soloTiempo?: boolean;
   onCerrar: () => void;
 }) {
   const [panel, setPanel] = useState<'ninguno' | 'avisos' | 'total'>('ninguno');
@@ -204,8 +202,8 @@ function DockCronometro({
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 flex flex-col items-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      {/* Panel desplegable (avisos / total) */}
-      {panel !== 'ninguno' && (
+      {/* Panel desplegable (avisos / total) — nunca para el operador. */}
+      {!soloTiempo && panel !== 'ninguno' && (
         <div className="w-full max-w-2xl max-h-[52vh] overflow-y-auto rounded-2xl bg-zinc-950/95 backdrop-blur ring-1 ring-white/15 p-4 shadow-2xl">
           {panel === 'avisos' && <AvisosCronometro m={m} />}
           {panel === 'total' && (
@@ -294,32 +292,35 @@ function DockCronometro({
           <BotonDock tono="neutro" pequeno onClick={() => ejecutar('reset')}>
             ↻ Reset
           </BotonDock>
-          <form action={fast(sonarBocina, { t: 'bocina' })}>
-            <input type="hidden" name="id" value={m.id} />
-            <BotonDock tono="neutro" pequeno>📣 Bocina</BotonDock>
-          </form>
-          <button
-            type="button"
-            onClick={() => setPanel((p) => (p === 'avisos' ? 'ninguno' : 'avisos'))}
-            className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
-              panel === 'avisos'
-                ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
-                : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
-            }`}
-          >
-            🔔 Avisos
-          </button>
-          <button
-            type="button"
-            onClick={() => setPanel((p) => (p === 'total' ? 'ninguno' : 'total'))}
-            className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
-              panel === 'total'
-                ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
-                : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
-            }`}
-          >
-            ⏱ Total
-          </button>
+          <BotonDock tono="neutro" pequeno onClick={() => ejecutar('bocina')}>
+            📣 Bocina
+          </BotonDock>
+          {!soloTiempo && (
+            <>
+              <button
+                type="button"
+                onClick={() => setPanel((p) => (p === 'avisos' ? 'ninguno' : 'avisos'))}
+                className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
+                  panel === 'avisos'
+                    ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
+                    : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
+                }`}
+              >
+                🔔 Avisos
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanel((p) => (p === 'total' ? 'ninguno' : 'total'))}
+                className={`h-10 px-3 rounded-xl text-xs font-bold ring-1 transition active:scale-[0.97] ${
+                  panel === 'total'
+                    ? 'bg-orange-600/40 ring-orange-400/60 text-orange-100'
+                    : 'bg-zinc-800/80 ring-white/10 text-zinc-100 hover:bg-zinc-700/80'
+                }`}
+              >
+                ⏱ Total
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={onCerrar}
@@ -582,17 +583,24 @@ function ShotClock({ ms, fuenteCls = 'font-orbitron' }: { ms: number; fuenteCls?
 export function VisorMarcador({
   inicial,
   puedeControlar = false,
+  claveOperador = null,
 }: {
   inicial: Marcador;
   // true solo para administradores: habilita el dock de control en la misma
   // pantalla (operar el cronómetro desde el móvil sin abrir /admin).
   puedeControlar?: boolean;
+  // Clave del link de operador ya VALIDADA en el servidor (SQL 39): habilita
+  // el dock recortado (tiempo + bocina) sin sesión.
+  claveOperador?: string | null;
 }) {
   const [m, setM] = useState<Marcador>(inicial);
   const [relojMs, setRelojMs] = useState(inicial.reloj_restante_ms);
   const [shotMs, setShotMs] = useState(inicial.shot_restante_ms);
   const [sonidoOn, setSonidoOn] = useState(false);
-  const [dockAbierto, setDockAbierto] = useState(puedeControlar);
+  // Operador = link con clave y sin sesión de admin.
+  const modoOperador = !puedeControlar && Boolean(claveOperador);
+  const conDock = puedeControlar || modoOperador;
+  const [dockAbierto, setDockAbierto] = useState(conDock);
   // Wake Lock encendido por defecto: el visor casi siempre está proyectando.
   const [pantallaOn, setPantallaOn] = useState(true);
   const rafRef = useRef<number | null>(null);
@@ -707,25 +715,18 @@ export function VisorMarcador({
         ? evPlay()
         : accion === 'reset'
           ? { t: 'rReloj' }
-          : evAjuste(deltaSeg);
+          : accion === 'bocina'
+            ? { t: 'bocina' }
+            : evAjuste(deltaSeg);
     setM((prev) => aplicarEventoFast(prev, ev));
     fastRef.current?.send({ type: 'broadcast', event: 'ev', payload: ev });
     setPendienteReloj(true);
-    const fila = await accionReloj(inicial.id, accion, deltaSeg);
+    const fila = modoOperador && claveOperador
+      ? await accionRelojOp(inicial.slug, claveOperador, accion, deltaSeg)
+      : await accionReloj(inicial.id, accion, deltaSeg);
     setPendienteReloj(false);
     if (fila) setM((prev) => (masNuevo(prev, fila) ? fila : prev));
   }
-
-  // Emite el evento predicho al canal fast y lo aplica en local antes de que
-  // vuelva el Server Action (mismo patrón que el panel de control).
-  const fast: FastFn = (accion, evOrFn) => {
-    return ((fd: FormData) => {
-      const ev = typeof evOrFn === 'function' ? evOrFn() : evOrFn;
-      setM((prev) => aplicarEventoFast(prev, ev));
-      fastRef.current?.send({ type: 'broadcast', event: 'ev', payload: ev });
-      return accion(fd);
-    }) as typeof accion;
-  };
 
   // Tick local con requestAnimationFrame para reloj y shot. También dispara
   // sonidos automáticos: beep cada segundo del shot del 5 al 1, chicharra
@@ -850,7 +851,7 @@ export function VisorMarcador({
   if (m.es_cronometro) {
     // El dock abierto ocupa la franja inferior: el reloj se achica para no
     // quedar tapado (en proyección el dock va cerrado y ocupa todo).
-    const dockConEspacio = puedeControlar && dockAbierto;
+    const dockConEspacio = conDock && dockAbierto;
     // formato MM:SS o M:SS.MMM cuando queda poco (últimos 10s: mostramos décimas).
     const bajos = relojMs < 10_000;
     const totalSeg = Math.max(0, Math.ceil(relojMs / 1000));
@@ -876,7 +877,7 @@ export function VisorMarcador({
 
         {/* Botones flotantes */}
         <div className="absolute right-3 top-3 z-40 flex items-center gap-2 opacity-40 hover:opacity-100 focus-within:opacity-100 transition">
-          {puedeControlar && (
+          {conDock && (
             <button
               type="button"
               onClick={() => setDockAbierto((v) => !v)}
@@ -960,13 +961,13 @@ export function VisorMarcador({
         </div>
 
         {/* Dock de control (solo admin) — misma vista, pensado para móvil. */}
-        {puedeControlar && (
+        {conDock && (
           <DockCronometro
             m={m}
-            fast={fast}
             ejecutar={(accion, delta) => void ejecutarReloj(accion, delta)}
             pendiente={pendienteReloj}
             abierto={dockAbierto}
+            soloTiempo={modoOperador}
             onCerrar={() => setDockAbierto(false)}
           />
         )}
