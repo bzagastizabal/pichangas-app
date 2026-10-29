@@ -247,6 +247,20 @@ decide si la pichanga se realiza o se cancela.)
     con sonido activado reproduce el clip, así suena en el equipo que proyecta y no solo en el
     móvil del que lo toca. `reproducirEfecto()` cachea el AudioBuffer por URL y
     `precargarEfectos()` los baja al activar el sonido.
+  - **SQL 41 — fix: no se podían crear marcadores**. El trigger de SQL 39 llamaba
+    `gen_random_bytes` (pgcrypto, que Supabase instala en el esquema `extensions`)
+    desde una función con `set search_path = public`; en el editor SQL resolvía, en
+    runtime no, y al ser AFTER INSERT abortaba TODO insert en `marcadores`
+    (`42883: function gen_random_bytes(integer) does not exist`). La clave ahora se
+    genera con `md5(gen_random_uuid())` — ambas en pg_catalog, sin depender de
+    extensiones ni del search_path. Regla: cualquier función con `set search_path`
+    debe usar solo funciones del core o esquema-calificar las de extensiones.
+  - **Tiempo total editable en el panel de control**: `<FormTotal/>` (minutos +
+    segundos → `fijarTotalCronometro`) junto al ajuste rápido. Antes el total solo
+    se cambiaba desde el dock del visor. Y en el dock, el panel de avisos/total
+    lleva `select-text`: el visor usa `select-none` para que proyectar no
+    seleccione el reloj, pero en móvil eso hereda a los `<input>` y el navegador
+    no deja escribir dentro de un campo con `user-select:none`.
   - Pendiente: integraciones de proyección al TV (QR del visor en el control, modo overlay
     transparente para OBS, manifest PWA para Android TV).
 

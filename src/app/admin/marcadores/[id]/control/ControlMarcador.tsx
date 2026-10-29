@@ -43,11 +43,59 @@ import {
   cambiarPeriodo,
   cambiarPuntos,
   cambiarTimeouts,
+  fijarTotalCronometro,
   reiniciarPartido,
   renombrarEquipos,
   resetShot,
   sonarBocina,
 } from './actions';
+
+// Duración total del cronómetro: es el valor al que vuelve ↻ Reset. Antes solo
+// se podía cambiar desde el dock del visor; aquí también, que es la vista donde
+// uno viene a configurarlo. El `key` por total remonta los inputs cuando el
+// valor cambia en la DB, así los campos no se quedan con el número viejo.
+function FormTotal({ m }: { m: Marcador }) {
+  const total = m.duracion_periodo_seg;
+  return (
+    <form action={fijarTotalCronometro} className="space-y-3">
+      <HiddenId id={m.id} />
+      <p className="text-xs uppercase tracking-widest text-tenue">
+        Tiempo total · actual {Math.floor(total / 60)}:
+        {String(total % 60).padStart(2, '0')}
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div>
+          <label className="block text-[0.7rem] text-tenue mb-1">Minutos</label>
+          <input
+            key={`min-${total}`}
+            name="crono_min"
+            type="number"
+            min={0}
+            max={240}
+            defaultValue={Math.floor(total / 60)}
+            className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-24"
+          />
+        </div>
+        <div>
+          <label className="block text-[0.7rem] text-tenue mb-1">Segundos</label>
+          <input
+            key={`seg-${total}`}
+            name="crono_seg"
+            type="number"
+            min={0}
+            max={59}
+            defaultValue={total % 60}
+            className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-24"
+          />
+        </div>
+        <Boton tono="primario">Aplicar</Boton>
+      </div>
+      <p className="text-[0.7rem] text-tenue">
+        Deja el reloj en el nuevo total, pausado.
+      </p>
+    </form>
+  );
+}
 
 // Sub-form del estilo: fuente + colores. Radio controlado con useState para
 // que la selección se sienta al instante (antes era uncontrolled y el ring
@@ -667,6 +715,11 @@ export function ControlMarcador({ inicial }: { inicial: Marcador }) {
               </Boton>
             ))}
           </div>
+        </div>
+
+        {/* Tiempo total (duración a la que vuelve el reset) */}
+        <div className="rounded-2xl bg-tarjeta/70 backdrop-blur ring-1 ring-white/10 p-4">
+          <FormTotal m={m} />
         </div>
 
         {/* Avisos configurables (SQL 36) */}

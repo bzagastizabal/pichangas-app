@@ -18,6 +18,7 @@ import {
 import { AvisosCronometro } from '@/components/AvisosCronometro';
 import { useMantenerPantalla } from '@/lib/wake-lock';
 import { BotonPantalla } from '@/components/BotonPantalla';
+import { BotonSubmit } from '@/components/BotonSubmit';
 import { fijarTotalCronometro } from '@/app/admin/marcadores/[id]/control/actions';
 import {
   accionReloj,
@@ -240,9 +241,18 @@ function DockCronometro({
         </div>
       )}
 
-      {/* Panel desplegable (avisos / total) — nunca para el operador. */}
+      {/* Panel desplegable (avisos / total) — nunca para el operador.
+          `select-text`: el contenedor del visor lleva `select-none` (para que
+          proyectar no seleccione el reloj por accidente) y eso se hereda a los
+          <input>; en móvil el navegador no deja escribir dentro de un campo con
+          user-select:none, así que aquí lo devolvemos. El stopPropagation del
+          doble clic evita que tocar dos veces un campo meta la pantalla en
+          fullscreen (el root escucha onDoubleClick). */}
       {!soloTiempo && (panel === 'avisos' || panel === 'total') && (
-        <div className="w-full max-w-2xl max-h-[52vh] overflow-y-auto rounded-2xl bg-zinc-950/95 backdrop-blur ring-1 ring-white/15 p-4 shadow-2xl">
+        <div
+          onDoubleClick={(e) => e.stopPropagation()}
+          className="w-full max-w-2xl max-h-[52vh] overflow-y-auto rounded-2xl bg-zinc-950/95 backdrop-blur ring-1 ring-white/15 p-4 shadow-2xl select-text [-webkit-user-select:text]"
+        >
           {panel === 'avisos' && <AvisosCronometro m={m} />}
           {panel === 'total' && (
             <form action={fijarTotalCronometro} className="space-y-3">
@@ -255,6 +265,7 @@ function DockCronometro({
                 <div>
                   <label className="block text-[0.7rem] text-tenue mb-1">Minutos</label>
                   <input
+                    key={`min-${totalSeg}`}
                     name="crono_min"
                     type="number"
                     min={0}
@@ -266,6 +277,7 @@ function DockCronometro({
                 <div>
                   <label className="block text-[0.7rem] text-tenue mb-1">Segundos</label>
                   <input
+                    key={`seg-${totalSeg}`}
                     name="crono_seg"
                     type="number"
                     min={0}
@@ -274,12 +286,12 @@ function DockCronometro({
                     className="border border-borde rounded-lg px-3 py-2 bg-campo text-texto w-24"
                   />
                 </div>
-                <button
-                  type="submit"
+                <BotonSubmit
                   className="h-11 px-4 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold active:scale-[0.97] transition"
+                  pendiente="Aplicando…"
                 >
                   Aplicar
-                </button>
+                </BotonSubmit>
               </div>
               <p className="text-[0.7rem] text-tenue">
                 Deja el reloj en el nuevo total, pausado.

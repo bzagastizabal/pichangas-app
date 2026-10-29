@@ -110,7 +110,15 @@ export async function crearMarcador(
     data = r.data;
     error = r.error;
   }
-  if (error || !data) return { error: 'No se pudo crear el marcador: ' + (error?.message ?? '') };
+  if (error || !data) {
+    const msg = error?.message ?? '';
+    // El trigger de la clave de operador (SQL 39) usaba gen_random_bytes y
+    // abortaba TODO insert; SQL 41 lo arregla. Si reaparece, que se vea.
+    const pista = /gen_random_bytes/.test(msg)
+      ? ' — falta correr supabase/sql/41_fix_clave_operador.sql'
+      : '';
+    return { error: 'No se pudo crear el marcador: ' + msg + pista };
+  }
 
   redirect(`/admin/marcadores/${data.id}/control`);
 }
